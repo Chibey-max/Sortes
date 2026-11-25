@@ -1,0 +1,12 @@
+import { deriveUnifiedAccount } from "@qorechain/sdk";
+import { mldsa87 } from "@qorechain/pqc";
+import { createPublicClient, http, toHex } from "viem";
+import { ACTIONS, adminDigest, params } from "../../src/protocol.js";
+const acct = await deriveUnifiedAccount("test test test test test test test test test test test junk", 0);
+const digest = adminDigest({ action: ACTIONS.WITHDRAW, params: params.withdraw(10n ** 18n), chainId: 9800n, contract: "0x1111111111111111111111111111111111111111", house: acct.evm as `0x${string}`, nonce: 3n });
+const sig = mldsa87.sign(acct.pqc.secretKey, Uint8Array.from(Buffer.from(digest.slice(2), "hex")));
+const pub = createPublicClient({ transport: http("https://evm-testnet.qore.host") });
+const abi = [{ type: "function", name: "pqcVerify", stateMutability: "view", inputs: [{ name: "p", type: "bytes" }, { name: "s", type: "bytes" }, { name: "m", type: "bytes" }], outputs: [{ type: "bool" }] }] as const;
+const ok = await pub.readContract({ address: "0x0000000000000000000000000000000000000a01", abi, functionName: "pqcVerify", args: [toHex(acct.pqc.publicKey), toHex(sig), digest] });
+const bad = await pub.readContract({ address: "0x0000000000000000000000000000000000000a01", abi, functionName: "pqcVerify", args: [toHex(acct.pqc.publicKey), toHex(sig), ("0x" + "00".repeat(32)) as `0x${string}`] });
+console.log("pubkey bytes", acct.pqc.publicKey.length, "| live pqcVerify(admin digest):", ok, "| wrong digest:", bad);

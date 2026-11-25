@@ -1,0 +1,35 @@
+{
+  "name": "sortes-house",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sortes house daemon and admin CLI: reveals hash-chain values, keeps a scoped EVM window open, signs admin actions with ML-DSA-87.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "sortes-house": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "start": "node dist/cli.js run",
+    "cli": "tsx src/cli.ts",
+    "test:live": "tsx test/live/pqc-sig.live.ts"
+  },
+  "dependencies": {
+    "@cosmjs/stargate": "^0.39.0",
+    "@qorechain/evm": "^0.14.0",
+    "@qorechain/pqc": "^0.2.3",
+    "@qorechain/sdk": "^0.14.0",
+    "@scure/bip39": "^2.4.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
