@@ -80,7 +80,7 @@ try {
   cli(["keystore-import"], MNEMONIC);
   cli(["init", "--n", "500"]);
   log(cli(["enroll", "--bond", "200"]).trim());
-  procs.push(spawn(process.execPath, ["--import", "tsx", join(root, "house/src/cli.ts"), "run"], { cwd: join(root, "house"), env, stdio: "inherit" }));
+  procs.push(spawn(process.execPath, ["--import", "tsx", join(root, "house/src/cli.ts"), "run"], { cwd: join(root, "house"), env, stdio: "inherit", detached: true }));
   await waitFor(async () => (await fetch(`http://127.0.0.1:${HEALTH}/health`)).ok, 30_000, "daemon health");
 
   // Mint: two paid lots that complete, one sponsored, one left silent (user timeout later).
@@ -109,7 +109,7 @@ try {
   const webEnv = { ...process.env, NEXT_TELEMETRY_DISABLED: "1", NEXT_PUBLIC_EVM_RPC: RPC, NEXT_PUBLIC_HOUSE: houseAddr, NEXT_PUBLIC_MINT: mintAddr, NEXT_PUBLIC_DAEMON_URL: `http://127.0.0.1:${HEALTH}`, NEXT_PUBLIC_FROM_BLOCK: "0" };
   log("building web app…");
   execFileSync("npx", ["next", "build"], { cwd: join(root, "web"), env: webEnv, stdio: "ignore" });
-  procs.push(spawn("npx", ["next", "start", "-p", String(WEB)], { cwd: join(root, "web"), env: webEnv, stdio: "ignore" }));
+  procs.push(spawn("npx", ["next", "start", "-p", String(WEB)], { cwd: join(root, "web"), env: webEnv, stdio: "ignore", detached: true }));
   await waitFor(async () => (await fetch(`http://127.0.0.1:${WEB}/`)).ok, 60_000, "web app");
 
   const browser = await chromium.launch();
@@ -164,7 +164,10 @@ try {
   failures.push(String(e?.message ?? e));
   console.error(e);
 } finally {
-  for (const p of procs.reverse()) p.kill("SIGKILL");
+  // Kill whole process groups: `npx next start` leaves a next-server child behind otherwise.
+  for (const p of procs.reverse()) {
+    try { process.kill(-p.pid, "SIGKILL"); } catch { try { p.kill("SIGKILL"); } catch {} }
+  }
   rmSync(dataDir, { recursive: true, force: true });
   console.log(failures.length ? `\nSMOKE FAILED (${failures.length})` : "\nSMOKE PASSED");
   process.exit(failures.length ? 1 : 0);
