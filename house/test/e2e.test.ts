@@ -52,7 +52,7 @@ let userAcct: ReturnType<typeof privateKeyToAccount>;
 const HOUSE_ABI = JSON.parse(readFileSync(resolve(contracts, "abi/SortesHouse.json"), "utf8"));
 const pqcPub: Hex = "0xa11ce0";
 
-function startDaemon(): ChildProcess {
+function startDaemon(extra: Record<string, string> = {}): ChildProcess {
   const p = spawn(process.execPath, ["--import", "tsx", resolve(here, "../src/cli.ts"), "run"], {
     env: {
       ...process.env,
@@ -64,6 +64,7 @@ function startDaemon(): ChildProcess {
       SORTES_KEY_PASSWORD: "e2e-password-not-secret",
       SORTES_POLL_MS: "500",
       SORTES_HEALTH_PORT: "18787",
+      ...extra,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -190,4 +191,35 @@ test("attack runner: every attack hits its expected error on chain", async () =>
   }
   // anvil's prevrandao changes per block (unlike diana), so only check the probe ran.
   assert.ok(byName["prevrandao"]);
+});
+
+test("one-signature mint: daemon reveals, relays the user's secret and finalizes the lot", async () => {
+  const w = createWalletClient({ chain, transport: http(RPC), account: houseAcct });
+  const r = artifact("SortesRenderer.sol", "SortesRenderer");
+  const renderer = (await pub.waitForTransactionReceipt({ hash: await w.deployContract({ abi: r.abi, bytecode: r.bytecode.object, args: [] }) })).contractAddress!;
+  const m = artifact("SortesMint.sol", "SortesMint");
+  const mint = (await pub.waitForTransactionReceipt({ hash: await w.deployContract({ abi: m.abi, bytecode: m.bytecode.object, args: [houseAddr, renderer, 100n, 3n, houseAcct.address] }) })).contractAddress!;
+  daemon!.kill("SIGKILL");
+  daemon = startDaemon({ SORTES_MINT_CONTRACT: mint });
+
+  const secret = keccak256(toHex("mint secret"));
+  const commit = commitmentOf(secret, userAcct.address, mint, 31337n);
+  const uw = createWalletClient({ chain, transport: http(RPC), account: userAcct });
+  await pub.waitForTransactionReceipt({ hash: await uw.writeContract({ address: mint, abi: m.abi, functionName: "mint", args: [commit], value: parseEther("1") }) });
+  const total = (await pub.readContract({ address: mint, abi: m.abi, functionName: "totalMinted", args: [] })) as bigint;
+  const lot0 = (await pub.readContract({ address: mint, abi: m.abi, functionName: "lotOf", args: [total] })) as any;
+  await waitFor(async () => (await status(lot0.requestId)) === 2);
+
+  // A wrong secret is refused by the relay before anything is sent.
+  const bad = await fetch("http://127.0.0.1:18787/reveal", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: lot0.requestId.toString(), secret: keccak256(toHex("wrong")) }) });
+  assert.equal(bad.status, 400);
+  const ok = await fetch("http://127.0.0.1:18787/reveal", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: lot0.requestId.toString(), secret }) });
+  assert.equal(ok.status, 200, await ok.text());
+
+  await waitFor(async () => ((await pub.readContract({ address: mint, abi: m.abi, functionName: "lotOf", args: [total] })) as any).finalized === true);
+  const uri = (await pub.readContract({ address: mint, abi: m.abi, functionName: "tokenURI", args: [total] })) as string;
+  const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString("utf8"));
+  assert.equal(json.name, `Sortes Lot #${total}`);
+  assert.equal(json.attributes.at(-1).value, "Fair roll");
+  writeFileSync(join(dataDir, "sample-lot.svg"), Buffer.from(json.image.split(",")[1], "base64"));
 });

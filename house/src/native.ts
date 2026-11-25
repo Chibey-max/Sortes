@@ -103,7 +103,7 @@ export async function openScopedWindow(cfg: Config, acct: Unified): Promise<stri
     blocks: cfg.windowBlocks,
     maxTxs: cfg.windowMaxTxs,
     maxValue: cfg.windowMaxValueUqor,
-    allowedTargets: [cfg.houseAddress],
+    allowedTargets: windowTargets(cfg),
   });
   const res = await sendNative(cfg, acct, [msg as any], { memo: "sortes-house window" });
   if (res.code !== 0) throw new Error(`open window failed: code ${res.code} ${res.rawLog ?? ""}`);
@@ -118,10 +118,15 @@ export async function openDeployWindow(cfg: Config, acct: Unified, blocks: numbe
   return res.transactionHash;
 }
 
+/** The only contracts the daemon's window admits: the house, and the mint when configured. */
+export function windowTargets(cfg: Config): string[] {
+  return cfg.mintAddress ? [cfg.houseAddress, cfg.mintAddress] : [cfg.houseAddress];
+}
+
 export function needsRenewal(w: WindowState, cfg: Config): boolean {
   if (!w.found || !w.live) return true;
-  const targets = (w.allowedTargets ?? []).map((t) => t.toLowerCase());
-  if (targets.length !== 1 || targets[0] !== cfg.houseAddress.toLowerCase()) return true;
+  const targets = (w.allowedTargets ?? []).map((t) => t.toLowerCase()).sort().join(",");
+  if (targets !== windowTargets(cfg).map((t) => t.toLowerCase()).sort().join(",")) return true;
   if (w.remainingTxs < BigInt(cfg.renewBelowTxs)) return true;
   if (Number(w.remainingBlocks) < cfg.windowBlocks * cfg.renewBelowFraction) return true;
   if (Number(w.remainingValue) < Number(cfg.windowMaxValueUqor) * cfg.renewBelowFraction) return true;

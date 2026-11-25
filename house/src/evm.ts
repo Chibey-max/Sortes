@@ -8,6 +8,7 @@ import type { Config } from "./config.js";
 const here = dirname(fileURLToPath(import.meta.url));
 /** ABIs exported from the Foundry build (contracts/export-abi.sh). */
 export const HOUSE_ABI = JSON.parse(readFileSync(resolve(here, "../../contracts/abi/SortesHouse.json"), "utf8"));
+export const MINT_ABI = JSON.parse(readFileSync(resolve(here, "../../contracts/abi/SortesMint.json"), "utf8"));
 
 export function chainFor(cfg: Config) {
   return defineChain({

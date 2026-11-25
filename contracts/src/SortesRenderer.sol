@@ -133,7 +133,7 @@ contract SortesRenderer {
         if (k == 5) return string.concat('<path d="M200 90L315 300H85Z"', f);
         if (k == 6) return string.concat('<path d="M110 110H290V210Q290 280 200 310Q110 280 110 210Z"', f);
         if (k == 8) return string.concat('<path d="M200 85L228 165L312 165L244 214L270 295L200 246L130 295L156 214L88 165L172 165Z"', f);
-        if (k == 9) return string.concat('<circle cx="200" cy="200" r="105" fill="none" stroke="', col, '" stroke-width="40"/>');
+        if (k == 9) return string.concat('<circle cx="200" cy="200" r="105" fill="#e7e5e4" stroke="', col, '" stroke-width="40"/>');
         if (k == 12) return string.concat('<path d="M100 290V140L150 195L200 110L250 195L300 140V290Z"', f);
         return string.concat('<path d="M200 90V310M130 140L270 260M270 140L130 260M150 100H250"', ' fill="none" stroke="', col, '" stroke-width="26" stroke-linecap="round"/>');
     }

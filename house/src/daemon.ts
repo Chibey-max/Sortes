@@ -3,7 +3,8 @@ import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Hex, PublicClient, WalletClient, Account } from "viem";
 import type { Config } from "./config.js";
-import { HOUSE_ABI, Status, readNumber, readRequest } from "./evm.js";
+import { HOUSE_ABI, MINT_ABI, Status, readNumber, readRequest } from "./evm.js";
+import { commitmentOf } from "./protocol.js";
 import { valueAt, type ChainFile } from "./chain.js";
 import { needsRenewal, openScopedWindow, readWindow, type Unified, type WindowState } from "./native.js";
 
@@ -21,6 +22,8 @@ export interface Health {
   openRequests: string | null;
   oldestUnrevealedAgeBlocks: number | null;
   reveals: number;
+  relayedUserReveals: number;
+  finalized: number;
   timeoutsClaimed: number;
   lastRevealTx: string | null;
   window: { remainingTxs: string; remainingBlocks: string; remainingValueUqor: string; live: boolean } | null;
@@ -33,6 +36,8 @@ export class HouseDaemon {
   private state: State;
   private statePath: string;
   private busy = false;
+  /** Serialises every transaction the daemon sends, so nonces never collide. */
+  private txLock: Promise<unknown> = Promise.resolve();
   private stopped = false;
   readonly health: Health;
   private params?: { wHouse: bigint; wUser: bigint; maxSkip: bigint };
@@ -56,6 +61,8 @@ export class HouseDaemon {
       openRequests: null,
       oldestUnrevealedAgeBlocks: null,
       reveals: 0,
+      relayedUserReveals: 0,
+      finalized: 0,
       timeoutsClaimed: 0,
       lastRevealTx: null,
       window: null,
@@ -80,10 +87,16 @@ export class HouseDaemon {
     renameSync(tmp, this.statePath);
   }
 
-  private async send(functionName: string, args: unknown[]): Promise<Hex> {
+  private send(functionName: string, args: unknown[], target: "house" | "mint" = "house"): Promise<Hex> {
+    const run = this.txLock.then(() => this.sendNow(functionName, args, target));
+    this.txLock = run.catch(() => undefined);
+    return run;
+  }
+
+  private async sendNow(functionName: string, args: unknown[], target: "house" | "mint"): Promise<Hex> {
     const hash = await this.wallet.writeContract({
-      address: this.cfg.houseAddress,
-      abi: HOUSE_ABI,
+      address: target === "mint" ? this.cfg.mintAddress! : this.cfg.houseAddress,
+      abi: target === "mint" ? MINT_ABI : HOUSE_ABI,
       functionName,
       args,
       account: this.account,
@@ -127,8 +140,11 @@ export class HouseDaemon {
             this.health.lastRevealTx = tx;
             log(`revealed #${id} (position ${r.position}) in ${tx}`);
           } else if (block > r.lockBlock + wHouse) {
-            done = true; // missed: it times out in the user's favour; nothing the house can do
-            log(`request #${id} passed the house deadline unrevealed`);
+            // Missed: settle it at once so the user gets fee + penalty without having to act.
+            log(`request #${id} passed the house deadline unrevealed; claiming the timeout for the user`);
+            await this.send("claimTimeout", [BigInt(id)]);
+            this.health.timeoutsClaimed++;
+            done = await this.finalizeLot(id, r.consumer);
           } else {
             const age = Number(block - r.requestBlock);
             oldestAge = oldestAge === null ? age : Math.max(oldestAge, age);
@@ -139,10 +155,10 @@ export class HouseDaemon {
             const tx = await this.send("claimTimeout", [BigInt(id)]);
             this.health.timeoutsClaimed++;
             log(`claimed user timeout for #${id} in ${tx}`);
-            done = true;
+            done = await this.finalizeLot(id, r.consumer);
           }
         } else {
-          done = true; // Fulfilled or timed out
+          done = await this.finalizeLot(id, r.consumer); // Fulfilled or timed out
         }
 
         if (done && advance && id === this.state.lowestOpen) {
@@ -166,6 +182,37 @@ export class HouseDaemon {
     } finally {
       this.busy = false;
     }
+  }
+
+  /** For a final request opened by the configured SortesMint, fix the lot's traits. */
+  private async finalizeLot(id: number, consumer: Hex): Promise<boolean> {
+    const mint = this.cfg.mintAddress;
+    if (!mint || consumer.toLowerCase() !== mint.toLowerCase()) return true;
+    const tokenId = (await this.pub.readContract({ address: mint, abi: MINT_ABI, functionName: "tokenOfRequest", args: [BigInt(id)] })) as bigint;
+    if (tokenId === 0n) return true;
+    const lot = (await this.pub.readContract({ address: mint, abi: MINT_ABI, functionName: "lotOf", args: [tokenId] })) as { finalized: boolean };
+    if (lot.finalized) return true;
+    const tx = await this.send("finalize", [tokenId], "mint");
+    this.health.finalized++;
+    log(`finalized lot #${tokenId} (request #${id}) in ${tx}`);
+    return true;
+  }
+
+  /**
+   * Relay a user's secret once the house has revealed. Safe: the house value is already fixed
+   * on chain, so knowing the secret now gives the house nothing to steer. The secret is checked
+   * against the on-chain commitment before anything is sent.
+   */
+  async relayUserReveal(id: bigint, secret: Hex): Promise<{ status: number; body: unknown }> {
+    const r = await readRequest(this.pub, this.cfg.houseAddress, id);
+    if (r.status !== Status.HouseRevealed) return { status: 409, body: { error: "request is not waiting for the user reveal", status: Status[r.status] } };
+    const commit = commitmentOf(secret, r.beneficiary, r.consumer, BigInt(this.cfg.evmChainId));
+    if (commit !== r.commit) return { status: 400, body: { error: "secret does not match the commitment" } };
+    const tx = await this.send("revealUser", [id, secret]);
+    this.health.relayedUserReveals++;
+    log(`relayed user reveal for #${id} in ${tx}`);
+    void this.tick();
+    return { status: 200, body: { tx } };
   }
 
   /** If the next reveal would skip more than MAX_SKIP links, move the checkpoint first. */
@@ -202,6 +249,30 @@ export class HouseDaemon {
   serveHealth(): void {
     createServer((req, res) => {
       res.setHeader("access-control-allow-origin", "*");
+      res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+      res.setHeader("access-control-allow-headers", "content-type");
+      if (req.method === "OPTIONS") {
+        res.writeHead(204).end();
+        return;
+      }
+      if (req.method === "POST" && req.url?.startsWith("/reveal")) {
+        let body = "";
+        req.on("data", (c) => {
+          body += c;
+          if (body.length > 1024) req.destroy();
+        });
+        req.on("end", async () => {
+          try {
+            const { id, secret } = JSON.parse(body);
+            if (!/^0x[0-9a-fA-F]{64}$/.test(secret)) throw new Error("secret must be 32 bytes hex");
+            const out = await this.relayUserReveal(BigInt(id), secret as Hex);
+            res.writeHead(out.status, { "content-type": "application/json" }).end(JSON.stringify(out.body));
+          } catch (e: any) {
+            res.writeHead(400, { "content-type": "application/json" }).end(JSON.stringify({ error: String(e?.shortMessage ?? e?.message ?? e) }));
+          }
+        });
+        return;
+      }
       if (req.url?.startsWith("/health")) {
         res.writeHead(this.health.ok ? 200 : 503, { "content-type": "application/json" });
         res.end(JSON.stringify(this.health));
