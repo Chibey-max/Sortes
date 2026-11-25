@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { signDigest } from "./sign.js";
@@ -13,6 +15,8 @@ import { HOUSE_ABI, clients, readNumber } from "./evm.js";
 import { houseAccount, openDeployWindow, openScopedWindow, pqcAccount, readWindow, registerPqcKey } from "./native.js";
 import { HouseDaemon } from "./daemon.js";
 
+const here = dirname(fileURLToPath(import.meta.url));
+
 const USAGE = `sortes-house <command>
 
 Setup
@@ -22,6 +26,8 @@ Setup
   register-key                 register the ML-DSA-87 key on the native lane (with proof of possession)
   open-window [--deploy B T Q] open the scoped window (house contract only), or an unscoped
                                deploy window of B blocks, T txs and Q QOR
+  deploy                       deploy House, Renderer, Mint, Dice and Probe from the house
+                               account (needs an unscoped window); writes data/deployment.json
   init [--n 10000]             draw a seed and write the hash chain to data/chain.json (0600)
   enroll [--bond 200]          post the anchor and bond, signed with ML-DSA-87
 
@@ -30,6 +36,7 @@ Run
 
 Admin (each signed with ML-DSA-87)
   withdraw <qor>   set-payout <0x>   pause   resume   rotate [--n 10000]
+  sponsor <qor>                top up SortesMint's sponsor pool (QoreX mints) from the house account
   status                       contract and window summary
 
 Environment: SORTES_HOUSE_CONTRACT, SORTES_KEY_PASSWORD, SORTES_DATA_DIR (./data),
@@ -127,6 +134,31 @@ async function main() {
       }
       break;
     }
+    case "deploy": {
+      const cfg = loadConfig({ needHouse: false });
+      const acct = await loadAccount(cfg);
+      const { pub, wallet, account } = clients(cfg, acct.privateKey as Hex);
+      const out = resolve(here, "../../contracts/out");
+      const art = (f: string, n: string) => JSON.parse(readFileSync(resolve(out, f, `${n}.json`), "utf8"));
+      const deploy = async (name: string, a: any, args: unknown[]) => {
+        const hash = await wallet!.deployContract({ abi: a.abi, bytecode: a.bytecode.object, args, account: account!, chain: wallet!.chain } as any);
+        const rc = await pub.waitForTransactionReceipt({ hash });
+        if (rc.status !== "success" || !rc.contractAddress) throw new Error(`${name} deploy failed in ${hash}`);
+        console.log(`${name.padEnd(15)} ${rc.contractAddress}  (${hash})`);
+        return { address: rc.contractAddress, tx: hash, block: rc.blockNumber.toString() };
+      };
+      const me = acct.evm as Hex;
+      const payout = (flag(args, "--payout") ?? me) as Hex;
+      const house = await deploy("SortesHouse", art("SortesHouse.sol", "SortesHouse"), [me, payout, 2n, 100n, 150n, 32n, parseEther("1"), parseEther("2"), parseEther("200")]);
+      const renderer = await deploy("SortesRenderer", art("SortesRenderer.sol", "SortesRenderer"), []);
+      const mint = await deploy("SortesMint", art("SortesMint.sol", "SortesMint"), [house.address, renderer.address, 1000n, 3n, me]);
+      const dice = await deploy("SortesDice", art("SortesDice.sol", "SortesDice"), [house.address, parseEther("10"), me]);
+      const probe = await deploy("RandomnessProbe", art("RandomnessProbe.sol", "RandomnessProbe"), []);
+      const file = resolve(cfg.dataDir, "deployment.json");
+      writeFileSync(file, JSON.stringify({ chainId: cfg.evmChainId, houseAccount: me, house, renderer, mint, dice, probe }, null, 2));
+      console.log(`\nwritten ${file}\nexport SORTES_HOUSE_CONTRACT=${house.address} SORTES_MINT_CONTRACT=${mint.address} SORTES_PROBE_CONTRACT=${probe.address}`);
+      break;
+    }
     case "init": {
       const cfg = loadConfig({ needHouse: false });
       const n = Number(flag(args, "--n", "10000"));
@@ -182,6 +214,16 @@ async function main() {
       if (existsSync(path)) saveChain(path + `.${Date.now()}.old`, JSON.parse(readFileSync(path, "utf8")));
       saveChain(path, c, true);
       console.log(`new anchor ${c.anchor}; restart the daemon and delete data/state.json`);
+      break;
+    }
+    case "sponsor": {
+      const cfg = loadConfig();
+      if (!cfg.mintAddress) throw new Error("set SORTES_MINT_CONTRACT");
+      const acct = await loadAccount(cfg);
+      const { pub, wallet, account } = clients(cfg, acct.privateKey as Hex);
+      const abi = JSON.parse(readFileSync(resolve(here, "../../contracts/abi/SortesMint.json"), "utf8"));
+      const hash = await wallet!.writeContract({ address: cfg.mintAddress, abi, functionName: "sponsor", args: [], value: parseEther(args[0] ?? "0"), account: account!, chain: wallet!.chain } as any);
+      console.log(`sponsor: ${(await pub.waitForTransactionReceipt({ hash })).status} in ${hash}`);
       break;
     }
     case "status": {
