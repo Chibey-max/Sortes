@@ -161,3 +161,33 @@ test("kill and restart: requests opened while the daemon is down are still revea
   daemon = startDaemon();
   for (const id of ids) await waitFor(async () => (await status(id)) === 2);
 });
+
+test("attack runner: every attack hits its expected error on chain", async () => {
+  const w = createWalletClient({ chain, transport: http(RPC), account: houseAcct });
+  const p = artifact("RandomnessProbe.sol", "RandomnessProbe");
+  const probe = (await pub.waitForTransactionReceipt({ hash: await w.deployContract({ abi: p.abi, bytecode: p.bytecode.object, args: [] }) })).contractAddress!;
+  execFileSync(process.execPath, ["--import", "tsx", resolve(here, "../src/attacks.ts"), "all"], {
+    env: {
+      ...process.env,
+      SORTES_LOCAL: "1",
+      SORTES_EVM_RPC: RPC,
+      SORTES_EVM_CHAIN_ID: "31337",
+      SORTES_HOUSE_CONTRACT: houseAddr,
+      SORTES_PROBE_CONTRACT: probe,
+      SORTES_MOCK_PQC: "1",
+      SORTES_MOCK_PQC_PUBKEY: pqcPub,
+      SORTES_DATA_DIR: dataDir,
+      SORTES_KEY_PASSWORD: "e2e-password-not-secret",
+    },
+    stdio: "inherit",
+    timeout: 240_000,
+  });
+  const results = JSON.parse(readFileSync(join(dataDir, "attacks.json"), "utf8")) as { name: string; passed: boolean; observed: string }[];
+  const byName = Object.fromEntries(results.map((r) => [r.name, r]));
+  for (const name of ["txhash", "forged-reveal", "swapped-secret", "ecdsa-thief", "replay", "silent-house", "silent-user"]) {
+    assert.ok(byName[name], `missing result for ${name}`);
+    assert.equal(byName[name].passed, true, `${name}: ${byName[name].observed}`);
+  }
+  // anvil's prevrandao changes per block (unlike diana), so only check the probe ran.
+  assert.ok(byName["prevrandao"]);
+});

@@ -63,6 +63,17 @@ export class HouseDaemon {
     };
   }
 
+  /** Request ids the attack runner asked the house to ignore (silent-house and forged-reveal demos). */
+  private skipped(): Set<number> {
+    const p = resolve(this.cfg.dataDir, "skip.json");
+    if (!existsSync(p)) return new Set();
+    try {
+      return new Set((JSON.parse(readFileSync(p, "utf8")) as number[]).map(Number));
+    } catch {
+      return new Set();
+    }
+  }
+
   private save() {
     const tmp = this.statePath + ".tmp";
     writeFileSync(tmp, JSON.stringify(this.state), { mode: 0o600 });
@@ -105,7 +116,10 @@ export class HouseDaemon {
         const r = await readRequest(this.pub, this.cfg.houseAddress, BigInt(id));
         let done = false;
 
-        if (r.status === Status.Requested) {
+        if (r.status === Status.Requested && this.skipped().has(id)) {
+          // Attack demo only (src/attacks.ts): stay silent on this request on purpose.
+          if (block > r.lockBlock + wHouse) done = true;
+        } else if (r.status === Status.Requested) {
           if (block > r.lockBlock && block <= r.lockBlock + wHouse) {
             await this.ensureReachable(Number(r.position), maxSkip);
             const tx = await this.send("revealHouse", [BigInt(id), valueAt(this.chain, Number(r.position))]);

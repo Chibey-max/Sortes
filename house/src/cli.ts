@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
-import { mldsa87 } from "@qorechain/pqc";
+import { signDigest } from "./sign.js";
 import { parseEther, formatEther, toHex, type Hex } from "viem";
 import { loadConfig, type Config } from "./config.js";
 import { keystorePassword, readKeystore, writeKeystore } from "./keystore.js";
@@ -66,8 +66,7 @@ async function signAdmin(cfg: Config, action: Hex, p: Hex): Promise<Hex> {
   // Cross-check with the contract so a mismatch fails here, not as BadPqcSignature on chain.
   const onchain = (await pub.readContract({ address: cfg.houseAddress, abi: HOUSE_ABI, functionName: "adminDigest", args: [action, p] })) as Hex;
   if (onchain !== digest) throw new Error(`digest mismatch: local ${digest}, contract ${onchain}`);
-  const sig = mldsa87.sign(acct.pqc.secretKey, hexBytes(digest));
-  return toHex(sig);
+  return signDigest(cfg, acct.pqc.secretKey, digest, process.env.SORTES_MOCK_PQC_PUBKEY as Hex | undefined);
 }
 
 function hexBytes(h: Hex): Uint8Array {

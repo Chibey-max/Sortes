@@ -17,7 +17,8 @@
     "test": "node --import tsx --test test/*.test.ts",
     "start": "node dist/cli.js run",
     "cli": "tsx src/cli.ts",
-    "test:live": "tsx test/live/pqc-sig.live.ts"
+    "test:live": "tsx test/live/pqc-sig.live.ts",
+    "attacks": "tsx src/attacks.ts"
   },
   "dependencies": {
     "@cosmjs/stargate": "^0.39.0",

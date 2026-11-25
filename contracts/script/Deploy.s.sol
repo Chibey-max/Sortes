@@ -5,6 +5,8 @@ import {Script, console2} from "forge-std/Script.sol";
 import {SortesHouse} from "../src/SortesHouse.sol";
 import {SortesMint} from "../src/SortesMint.sol";
 import {SortesRenderer} from "../src/SortesRenderer.sol";
+import {SortesDice} from "../src/SortesDice.sol";
+import {RandomnessProbe} from "../src/attacks/RandomnessProbe.sol";
 import {ISortesHouse} from "../src/interfaces/ISortesHouse.sol";
 
 /// @notice Deploys SortesHouse, SortesRenderer and SortesMint with the PRD's testnet parameters.
@@ -35,10 +37,14 @@ contract Deploy is Script {
         });
         SortesRenderer renderer = new SortesRenderer();
         SortesMint mint = new SortesMint(ISortesHouse(address(house)), renderer, 1000, 3, mintOwner);
+        SortesDice dice = new SortesDice(ISortesHouse(address(house)), 10 ether, mintOwner);
+        RandomnessProbe probe = new RandomnessProbe();
         vm.stopBroadcast();
 
         console2.log("SortesHouse   ", address(house));
         console2.log("SortesRenderer", address(renderer));
         console2.log("SortesMint    ", address(mint));
+        console2.log("SortesDice    ", address(dice));
+        console2.log("Probe         ", address(probe));
     }
 }
