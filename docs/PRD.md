@@ -4,6 +4,23 @@ Nov 24, 2026 · @Dave
 
 Sortes is fair randomness for QoreChain apps, shipped with a fair-trait NFT mint, for the Build Before Q-Day Post-Quantum dApp category. Everything below must be built, tested and live on diana by Dec 2, 2026, 23:59 UTC.
 
+## 0. Changes after the day-0 checks (25 Nov 2026)
+
+These override anything below that contradicts them.
+
+| Area | Change | Why |
+| --- | --- | --- |
+| Lock hash (§6, §9) | Kept in the result formula, but stored as whatever `blockhash(lockBlock)` returns, with no revert when it is zero. Trust model is stated as two-party on diana: rigging needs the house **and** the buyer. `LockHashUnavailable` is dropped. | `blockhash()` returns zero inside contracts on diana. |
+| Fulfilled event (§7) | `Fulfilled(id, secret, result)`: the secret is emitted so anyone can re-verify. | A QoreX cross-VM reveal leaves no EVM calldata to read the secret from. |
+| Key check (§7) | Enroll and every admin action require `pqcKeyStatus(house)` = `registered` and `algorithmId == 1` (ML-DSA-87). `KeyNotProven` now means "not an ML-DSA-87 key". The `pqcVerify` check over the enroll digest is the proof of possession. | The precompile returns `(registered, algorithmId, pubkey)`; there is no possession flag on the EVM side. |
+| Chain checkpoint (§7) | New `checkpoint(position, value)`: anyone may advance the hash-chain checkpoint over assigned positions. | More than `MAX_SKIP` timed-out requests in a row would otherwise block every later reveal. |
+| Refunds (§7) | A refund that cannot be pushed is credited to `owed[]` and taken with `claimOwed()`. `addBond()` lets anyone top up the bond. | Funds never get stuck behind a reverting beneficiary. |
+| Mint paths (§8, §11) | Two options for the user. **QoreX:** a native `MsgCrossVMCall` into `SortesMint.mintSponsored(commit)`; no value can cross, so the fee comes from a sponsor pool (3 per wallet). **MetaMask:** `mint(commit)` paying 1 QOR inside an EVM window opened from QoreX. | QoreX rejects `eth_sendTransaction` today; its only write path is the native lane. |
+| One signature (§10, §11) | The daemon serves `POST /reveal`: after the house reveal, the browser hands it the secret; the daemon checks it against the commitment and sends `revealUser`, then `finalize`. The wallet path remains as a fallback. This answers the open question about a second popup. | The house value is already fixed when the secret is handed over, so this gives the house nothing. |
+| Daemon window (§10) | Scoped to the house **and** mint contracts. The daemon also claims both kinds of timeout so users never have to. | It finalizes lots and settles timeouts. |
+| Block time (§6) | Measured 1.43 s (not 1.3): `W_HOUSE` 100 ≈ 2.4 min, `W_USER` 150 ≈ 3.6 min, a 17,280-block window ≈ 6.9 h. Parameters unchanged. | Day-0 measurement. |
+| Schedule (§15) | The day-by-day plan is dropped: build everything, then verify it end to end. | Author's decision. |
+
 ## 1. Summary
 
 **Problem:** QoreChain has no fair source of random numbers. Apps that need chance (mints, loot, games) use transaction hashes or block hashes, which the sender or validators can steer. The randomness services other chains rely on, Chainlink VRF and drand, are built on cryptography a quantum computer breaks.
@@ -400,11 +417,11 @@ sortes/
 
 ### Day-0 checks (these can change the design)
 
-- [ ] **blockhash:** a contract reading `blockhash(block.number - 2)` returns real, changing values on diana. If it doesn't, replace the lock hash with a second commit from the daemon and update section 6.
-- [ ] **pqcVerify message format:** sign a 32-byte digest with `@qorechain/pqc`, then check it with an `eth_call` to `0x...0a01`. Confirm both sides use the same message bytes and the same context.
-- [ ] **Precompiles active:** `GET /cosmos/evm/vm/v1/params` lists `0x...0a01` and `0x...0a02` in `active_static_precompiles`.
-- [ ] **User windows:** find out how QoreX opens an EVM window for a normal user before their first mint, and write the app's guidance around it.
-- [ ] **prevrandao:** read it in two blocks for the attack page.
+- [x] **blockhash:** RESULT: zero in contracts (n−1 … n−9000). Kept as an optional input; see §0. a contract reading `blockhash(block.number - 2)` returns real, changing values on diana. If it doesn't, replace the lock hash with a second commit from the daemon and update section 6.
+- [x] **pqcVerify message format:** RESULT: raw 32-byte digest, FIPS-204 ML-DSA-87, empty context; verified live (true / tampered false); ~312k gas. sign a 32-byte digest with `@qorechain/pqc`, then check it with an `eth_call` to `0x...0a01`. Confirm both sides use the same message bytes and the same context.
+- [x] **Precompiles active:** RESULT: 0x…0a01 and 0x…0a02 listed (also 0x…0901, 0x…0C01). `GET /cosmos/evm/vm/v1/params` lists `0x...0a01` and `0x...0a02` in `active_static_precompiles`.
+- [x] **User windows:** RESULT: QoreX cannot send EVM transactions; windows are opened from QoreX for coin-60 accounts (MetaMask). Both mint paths in §0. find out how QoreX opens an EVM window for a normal user before their first mint, and write the app's guidance around it.
+- [x] **prevrandao:** RESULT: constant 0xff…ff in every block. read it in two blocks for the attack page.
 - [ ] **Category:** confirm with the organisers that Sortes fits Post-Quantum dApp.
 
 ### Open questions
