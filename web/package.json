@@ -8,8 +8,8 @@
     "dev": "npm run sync && next dev",
     "build": "npm run sync && next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/*.test.ts"
+    "typecheck": "npm run sync && tsc --noEmit",
+    "test": "npm run sync && node --import tsx --test test/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^20.17.6",
