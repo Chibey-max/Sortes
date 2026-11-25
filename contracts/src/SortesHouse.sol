@@ -80,7 +80,8 @@ contract SortesHouse is ISortesHouse, ReentrancyGuard {
     event Enrolled(bytes32 anchor, uint64 chainLength, uint256 bond);
     event Requested(uint256 indexed id, address indexed consumer, address indexed beneficiary, uint64 position, uint64 lockBlock);
     event HouseRevealed(uint256 indexed id, bytes32 value, bytes32 lockHash);
-    event Fulfilled(uint256 indexed id, bytes32 result);
+    /// @dev The secret is public once fulfilled; emitting it lets anyone re-verify the result.
+    event Fulfilled(uint256 indexed id, bytes32 secret, bytes32 result);
     event TimedOut(uint256 indexed id, Status status);
     event Checkpoint(uint64 position, bytes32 value);
     event BondAdded(address indexed from, uint256 amount);
@@ -222,7 +223,7 @@ contract SortesHouse is ISortesHouse, ReentrancyGuard {
         r.status = Status.Fulfilled;
         _close(r.fee);
         earned += r.fee;
-        emit Fulfilled(id, result);
+        emit Fulfilled(id, secret, result);
     }
 
     /// @notice Settle a request whose deadline passed. Anyone may call.

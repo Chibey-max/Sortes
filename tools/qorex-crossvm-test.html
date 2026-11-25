@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QoreX Cross-VM Test</title>
+<style>
+  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#57534e; --card:#fff; --line:#e7e5e4; --ok:#15803d; --bad:#b91c1c; --accent:#1d4ed8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0c0a09; --fg:#f5f5f4; --muted:#a8a29e; --card:#1c1917; --line:#292524; --ok:#4ade80; --bad:#f87171; --accent:#93c5fd; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { color: var(--muted); margin: 0 0 20px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:13px ui-monospace, monospace; }
+  button { margin-top:12px; padding:9px 16px; border:0; border-radius:6px; background:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
+  @media (prefers-color-scheme: dark) { button { color:#0c0a09; } }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  pre { white-space:pre-wrap; word-break:break-all; font:12px/1.5 ui-monospace, monospace; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:10px; margin:10px 0 0; max-height:360px; overflow:auto; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  ol { padding-left: 20px; margin: 0; } li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>QoreX cross-VM test</h1>
+  <p class="lead">Day-0 check for Sortes: can a QoreX wallet call an EVM contract on diana through <code>MsgCrossVMCall</code>, and what does the EVM side see? Testnet only. Nothing here moves funds except the network fee.</p>
+
+  <section>
+    <h2>1. Connect</h2>
+    <ol>
+      <li>Open this page over <code>http://localhost</code>, not <code>file://</code> (extensions often skip file pages).</li>
+      <li>In QoreX, select the <b>testnet (qorechain-diana)</b> and a funded coin-118 <code>qor1…</code> account.</li>
+    </ol>
+    <button id="connect">Connect QoreX</button>
+    <pre id="connectOut">Not connected.</pre>
+  </section>
+
+  <section>
+    <h2>2. Send one cross-VM call into the EVM</h2>
+    <label for="target">Target EVM contract (default: the read-only consensus-params precompile)</label>
+    <input id="target" value="0x0000000000000000000000000000000000000C01">
+    <label for="payload">Payload (hex calldata; default: <code>rlConsensusParams()</code> selector)</label>
+    <input id="payload" value="">
+    <label for="gas">Gas limit hint</label>
+    <input id="gas" value="600000">
+    <button id="send" disabled>Sign and broadcast</button>
+    <pre id="sendOut">Waiting for connect.</pre>
+  </section>
+
+  <section>
+    <h2>3. Read the result from the chain</h2>
+    <p class="lead" style="margin:0">After a send, this reads the transaction and its <code>crossvm</code> events from the diana REST API. Copy the whole box back to Claude.</p>
+    <button id="inspect" disabled>Read transaction</button>
+    <pre id="inspectOut">No transaction yet.</pre>
+  </section>
+</main>
+
+<script>
+"use strict";
+const CHAIN_ID = "qorechain-diana";
+const REST = "https://api-testnet.qore.host";
+const TYPE_URL = "/qorechain.crossvm.v1.MsgCrossVMCall";
+const $ = (id) => document.getElementById(id);
+let account = null, lastTx = null;
+
+// ---- minimal protobuf writer for MsgCrossVMCall (fields 1-5; async=false and empty funds are omitted) ----
+function varint(n) { const out = []; while (n > 127) { out.push((n & 127) | 128); n >>>= 7; } out.push(n); return out; }
+function lenField(tag, bytes) { return [...varint(tag), ...varint(bytes.length), ...bytes]; }
+const utf8 = (s) => Array.from(new TextEncoder().encode(s));
+function hexToBytes(h) {
+  h = h.trim().replace(/^0x/i, "");
+  if (h.length % 2 || /[^0-9a-f]/i.test(h)) throw new Error("payload is not valid hex");
+  const out = []; for (let i = 0; i < h.length; i += 2) out.push(parseInt(h.slice(i, i + 2), 16)); return out;
+}
+function encodeMsgCrossVMCall({ sender, targetContract, payload }) {
+  return Uint8Array.from([
+    ...lenField(10, utf8(sender)),          // 1 sender
+    ...lenField(18, utf8("cosmwasm")),      // 2 source_vm (ignored by the chain; sent for wire compatibility)
+    ...lenField(26, utf8("evm")),           // 3 target_vm
+    ...lenField(34, utf8(targetContract)),  // 4 target_contract
+    ...lenField(42, payload),               // 5 payload
+  ]);
+}
+const toB64 = (u8) => btoa(String.fromCharCode(...u8));
+const show = (el, obj, cls) => { el.className = cls || ""; el.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2); };
+
+// rlConsensusParams() selector = first 4 bytes of keccak256("rlConsensusParams()"), computed offline.
+$("payload").value = "0x0266319d";
+
+$("connect").onclick = async () => {
+  const out = $("connectOut");
+  try {
+    const native = window.qorex && window.qorex.native;
+    if (!native) throw new Error("window.qorex.native not found. Is QoreX installed and is this page on http://localhost?");
+    const caps = Array.from(native.capabilities || []);
+    await native.enable(CHAIN_ID);
+    const key = await native.getKey(CHAIN_ID);
+    const addr20 = Array.from(key.address).map((b) => b.toString(16).padStart(2, "0")).join("");
+    account = { qor: key.bech32Address, evm: "0x" + addr20 };
+    show(out, { account: account.qor, sameBytesAs0x: account.evm, name: key.name, capabilities: caps,
+      canSignAndBroadcast: caps.includes("signAndBroadcast") }, caps.includes("signAndBroadcast") ? "ok" : "bad");
+    $("send").disabled = !caps.includes("signAndBroadcast");
+  } catch (e) { show(out, "Error: " + (e && e.message || e), "bad"); }
+};
+
+$("send").onclick = async () => {
+  const out = $("sendOut");
+  $("send").disabled = true;
+  try {
+    const target = $("target").value.trim();
+    if (!/^0x[0-9a-fA-F]{40}$/.test(target)) throw new Error("target must be a 0x address");
+    const value = encodeMsgCrossVMCall({ sender: account.qor, targetContract: target, payload: hexToBytes($("payload").value) });
+    show(out, "Approve the transaction in QoreX…");
+    const res = await window.qorex.native.signAndBroadcast({
+      chainId: CHAIN_ID,
+      messages: [{ typeUrl: TYPE_URL, value: toB64(value) }],
+      memo: "sortes day-0 crossvm test",
+      gasLimit: $("gas").value.trim(),
+    });
+    lastTx = res && res.txHash;
+    show(out, { result: res, encodedMessageHex: Array.from(value).map((b) => b.toString(16).padStart(2, "0")).join("") },
+      res && res.code === 0 ? "ok" : "bad");
+    $("inspect").disabled = !lastTx;
+  } catch (e) {
+    show(out, "Refused or failed: " + (e && e.message || e) + "\n\nCopy this message back to Claude; a refusal is a useful result too.", "bad");
+  } finally { $("send").disabled = false; }
+};
+
+$("inspect").onclick = async () => {
+  const out = $("inspectOut");
+  try {
+    show(out, "Reading " + lastTx + " …");
+    const hash = lastTx.replace(/^0x/i, "").toUpperCase();
+    const r = await fetch(REST + "/cosmos/tx/v1beta1/txs/" + hash);
+    const j = await r.json();
+    const tr = j.tx_response || {};
+    const events = (tr.events || []).filter((e) => /crossvm|ethereum|evm|tx_log|message/i.test(e.type))
+      .map((e) => ({ type: e.type, attrs: Object.fromEntries((e.attributes || []).map((a) => [a.key, a.value])) }));
+    show(out, { txhash: tr.txhash, height: tr.height, code: tr.code, codespace: tr.codespace, raw_log: tr.raw_log,
+      gas_used: tr.gas_used, gas_wanted: tr.gas_wanted, sender0x: account && account.evm, events }, tr.code === 0 ? "ok" : "bad");
+  } catch (e) {
+    show(out, "Could not read from REST (" + (e && e.message || e) + "). Send Claude the txHash from step 2 instead.", "bad");
+  }
+};
+</script>
+</body>
+</html>

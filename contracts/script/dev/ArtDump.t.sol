@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
-import {SortesRenderer} from "../src/SortesRenderer.sol";
-import {Traits} from "../src/lib/Traits.sol";
+import {SortesRenderer} from "../../src/SortesRenderer.sol";
+import {Traits} from "../../src/lib/Traits.sol";
 /// Dev helper (skipped unless DUMP_ART=1): writes sample SVGs for a visual check.
 contract ArtDump is Test {
     function test_dumpArt() public {
