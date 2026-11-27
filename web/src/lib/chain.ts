@@ -27,8 +27,8 @@ export interface Lot {
   finalized: boolean;
   isFloor: boolean;
   sponsored: boolean;
-  tier: number[];
-  variant: number[];
+  /** [metal, emblem, border, seal, frame]; the frame is the lot's tier. */
+  traits: number[];
 }
 
 export async function readRequest(id: bigint): Promise<HouseRequest> {
@@ -38,7 +38,7 @@ export async function readRequest(id: bigint): Promise<HouseRequest> {
 
 export async function readLot(tokenId: bigint): Promise<Lot> {
   const l = (await publicClient.readContract({ address: CONFIG.mint, abi: ABI.mint, functionName: "lotOf", args: [tokenId] })) as any;
-  return { tokenId, requestId: l.requestId, finalized: l.finalized, isFloor: l.isFloor, sponsored: l.sponsored, tier: l.tier.map(Number), variant: l.variant.map(Number) };
+  return { tokenId, requestId: l.requestId, finalized: l.finalized, isFloor: l.isFloor, sponsored: l.sponsored, traits: l.traits.map(Number) };
 }
 
 export async function readTokenUri(tokenId: bigint): Promise<{ name: string; image: string; attributes: { trait_type: string; value: string }[] }> {
@@ -122,4 +122,25 @@ export async function relayReveal(requestId: bigint, secret: Hex): Promise<{ ok:
   } catch (e: any) {
     return { ok: false, error: String(e?.message ?? e) };
   }
+}
+
+export async function ownerOf(tokenId: bigint): Promise<Address | undefined> {
+  try { return (await publicClient.readContract({ address: CONFIG.mint, abi: ABI.mint, functionName: "ownerOf", args: [tokenId] })) as Address; } catch { return undefined; }
+}
+
+/** Read many lots at once (the gallery). Unknown ids are skipped. */
+export async function readLots(ids: bigint[]): Promise<Lot[]> {
+  const got = await Promise.all(ids.map((id) => readLot(id).catch(() => undefined)));
+  return got.filter(Boolean) as Lot[];
+}
+
+/** Lots (token ids) owned by an address, newest first, found by scanning Minted events. */
+export async function lotsOf(owner: Address): Promise<bigint[]> {
+  const logs = await publicClient.getLogs({ address: CONFIG.mint, event: parseAbiItem("event Minted(uint256 indexed tokenId, address indexed to, uint256 indexed requestId, bool sponsored)"), args: { to: owner }, fromBlock: CONFIG.fromBlock, toBlock: "latest" });
+  return logs.map((l) => l.args.tokenId as bigint).reverse();
+}
+
+/** Block time of a block, as an epoch-seconds number. */
+export async function blockTime(n: bigint): Promise<number> {
+  return Number((await publicClient.getBlock({ blockNumber: n })).timestamp);
 }

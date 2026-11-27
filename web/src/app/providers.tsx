@@ -1,22 +1,19 @@
 "use client";
 
-import "@rainbow-me/rainbowkit/styles.css";
-import { RainbowKitProvider, connectorsForWallets, darkTheme, lightTheme } from "@rainbow-me/rainbowkit";
-import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
-import { qorexWallet, qorechainTestnet } from "@qorechain/qorex-rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
+import { injected } from "@wagmi/core";
+import { qorechainTestnet } from "@qorechain/qorex-rainbowkit";
 import { useState, type ReactNode } from "react";
 import { CONFIG } from "@/lib/config";
+import { ThemeProvider } from "@/lib/theme";
+import { ToastProvider } from "@/lib/toast";
+import { WalletProvider } from "@/lib/wallet";
 
-const connectors = connectorsForWallets(
-  [{ groupName: "QoreChain", wallets: [() => qorexWallet({ pollAccountsOnFocus: true }), metaMaskWallet] }],
-  { appName: "Sortes", projectId: CONFIG.walletConnectProjectId },
-);
-
+/** MetaMask (EVM lane) goes through wagmi; QoreX (native lane) is handled in lib/wallet + lib/qorex. */
 export const wagmiConfig = createConfig({
   chains: [qorechainTestnet as any],
-  connectors,
+  connectors: [injected({ target: "metaMask" })],
   transports: { [CONFIG.evmChainId]: http(CONFIG.evmRpc) },
   ssr: true,
 });
@@ -26,7 +23,11 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={qc}>
-        <RainbowKitProvider theme={{ lightMode: lightTheme(), darkMode: darkTheme() }}>{children}</RainbowKitProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <WalletProvider>{children}</WalletProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

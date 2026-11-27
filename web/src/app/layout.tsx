@@ -1,41 +1,19 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { THEME_BOOT } from "@/lib/theme";
 
 export const metadata: Metadata = {
-  title: "Sortes",
-  description: "Fair randomness for QoreChain, built only from quantum-safe parts. Mint a Sortes Lot and verify it yourself.",
+  title: "Sortes: fair randomness for QoreChain",
+  description: "The Athenian lottery machine, rebuilt on chain. Every lot carries its proof. Hashes and post-quantum signatures only.",
 };
-
-const NAV = [
-  ["/", "Mint"],
-  ["/gallery", "Gallery"],
-  ["/verify", "Verify"],
-  ["/attacks", "Attacks"],
-  ["/build", "Build"],
-  ["/house", "House"],
-] as const;
+export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <Providers>
-          <header className="top">
-            <Link href="/" className="brand">Sortes</Link>
-            <nav>
-              {NAV.map(([href, label]) => (
-                <Link key={href} href={href}>{label}</Link>
-              ))}
-            </nav>
-          </header>
-          <main>{children}</main>
-          <footer className="foot">
-            Sortes: fair randomness on QoreChain diana (testnet). keccak256 hash chains + ML-DSA-87. MIT licence.
-          </footer>
-        </Providers>
-      </body>
+    <html lang="en" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} /></head>
+      <body><Providers>{children}</Providers></body>
     </html>
   );
 }

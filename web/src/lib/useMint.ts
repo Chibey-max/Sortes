@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Address, Hex } from "viem";
 import { parseEventLogs } from "viem";
-import { useAccount, useWriteContract } from "wagmi";
+import { useWriteContract } from "wagmi";
 import { ABI, CONFIG } from "./config";
-import { findRequestByCommit, publicClient, readLot, readRequest, relayReveal, tokenOfRequest } from "./chain";
+import { findRequestByCommit, publicClient, readLot, readMintStats, readRequest, relayReveal, tokenOfRequest, type HouseRequest, type Lot } from "./chain";
 import { Status, commitmentOf } from "./protocol";
-import { connectQorex, qorexCall, type QorexAccount } from "./qorex";
+import { qorexCall, type QorexAccount } from "./qorex";
 import { downloadBackup, newSecret, saveSecret, secretForRequest, updateSecret, type SavedSecret } from "./secrets";
+import { useWallet } from "./wallet";
 
 /**
  * The mint state machine, shared by both wallet paths:
@@ -19,149 +20,166 @@ import { downloadBackup, newSecret, saveSecret, secretForRequest, updateSecret, 
  * plus "timedOut" (floor; refund if the house was silent) and "error".
  */
 export type Step = "idle" | "committing" | "committed" | "lockPassed" | "houseRevealed" | "userRevealSent" | "revealed" | "timedOut" | "error";
+export type Path = "qorex" | "evm";
+export type ErrorKind = "rejected" | "balance" | "network" | "window" | "pool" | "limit" | "soldout" | "other";
+
+export interface MintError { kind: ErrorKind; title: string; desc: string }
 
 export interface MintState {
   step: Step;
-  path?: "qorex" | "evm";
+  path?: Path;
   requestId?: bigint;
   tokenId?: bigint;
   commitTx?: string;
   revealTx?: string;
   saved?: SavedSecret;
-  status?: Status;
+  req?: HouseRequest;
+  head?: bigint;
+  lot?: Lot;
   floor?: boolean;
-  message?: string;
+  error?: MintError;
+  /** A softer note, e.g. the relay was down and the user's own reveal is needed. */
+  note?: string;
+}
+
+export function classify(e: any, extra?: { have?: string; need?: string }): MintError {
+  const m = String(e?.shortMessage ?? e?.message ?? e);
+  if (/User rejected|rejected the request|denied|cancel/i.test(m)) return { kind: "rejected", title: "You rejected the signature.", desc: "Nothing was sent and no QOR moved. You can try again." };
+  if (/no open EVM authori[sz]ation window|code 26|window/i.test(m) && /evm|window/i.test(m)) return { kind: "window", title: "Your EVM window is closed.", desc: "Open an EVM access window in QoreX, then try again. Nothing was sent." };
+  if (/PoolEmpty/.test(m)) return { kind: "pool", title: "The free-mint pool is empty.", desc: "Use the paid mint with MetaMask, or come back later." };
+  if (/SponsorLimit/.test(m)) return { kind: "limit", title: "This wallet used its free mints.", desc: "Each wallet gets a few sponsored mints. Use the paid mint to draw more." };
+  if (/SoldOut/.test(m)) return { kind: "soldout", title: "All 1,000 lots are drawn.", desc: "The collection is sold out." };
+  if (/insufficient funds|exceeds the balance|balance/i.test(m)) return { kind: "balance", title: "Not enough QOR.", desc: extra?.need ? `You need ${extra.need}. Your balance is ${extra.have ?? "lower"}.` : "A paid draw costs 1 QOR plus a small network fee." };
+  if (/chain|network|unsupported/i.test(m)) return { kind: "network", title: "Wrong network.", desc: "Switch to QoreChain diana, then try again. Nothing has been sent." };
+  return { kind: "other", title: "Something went wrong.", desc: m.length > 220 ? m.slice(0, 220) + "…" : m };
 }
 
 export function useMint() {
-  const { address: evmAddress } = useAccount();
+  const wallet = useWallet();
   const { writeContractAsync } = useWriteContract();
   const [state, setState] = useState<MintState>({ step: "idle" });
-  const [qorex, setQorex] = useState<QorexAccount>();
+  const [path, setPath] = useState<Path>("qorex");
+  const [secret, setSecret] = useState<Hex | null>(null);
   const poll = useRef<ReturnType<typeof setInterval>>();
-
   const patch = (p: Partial<MintState>) => setState((s) => ({ ...s, ...p }));
 
-  /** Shared start: new secret, saved before anything is sent. */
-  function prepare(minter: Address, path: "qorex" | "evm") {
-    const secret = newSecret();
-    const commit = commitmentOf(secret, minter, CONFIG.mint, BigInt(CONFIG.evmChainId));
-    const saved: SavedSecret = { secret, commit, minter, createdAt: Date.now(), path };
-    saveSecret(saved);
-    setState({ step: "committing", path, saved });
-    return saved;
-  }
-
-  const mintWithEvm = useCallback(async () => {
-    if (!evmAddress) throw new Error("connect an EVM wallet first");
-    const saved = prepare(evmAddress, "evm");
-    try {
-      const price = (await publicClient.readContract({ address: CONFIG.mint, abi: ABI.mint, functionName: "price", args: [] })) as bigint;
-      const hash = await writeContractAsync({ address: CONFIG.mint, abi: ABI.mint, functionName: "mint", args: [saved.commit], value: price });
-      patch({ step: "committed", commitTx: hash });
-      const rc = await publicClient.waitForTransactionReceipt({ hash });
-      if (rc.status !== "success") throw new Error("mint reverted (is your EVM window open in QoreX?)");
-      const ev = parseEventLogs({ abi: ABI.mint, logs: rc.logs, eventName: "Minted" })[0] as any;
-      track(saved, BigInt(ev.args.requestId), BigInt(ev.args.tokenId));
-    } catch (e: any) {
-      patch({ step: "error", message: friendly(e) });
-    }
-  }, [evmAddress, writeContractAsync]);
-
-  const mintWithQorex = useCallback(async () => {
-    try {
-      const acct = qorex ?? (await connectQorex());
-      setQorex(acct);
-      if (!acct.canSend) throw new Error("This QoreX build cannot sign dApp transactions yet (no signAndBroadcast). Update QoreX.");
-      const saved = prepare(acct.evm, "qorex");
-      const res = await qorexCall(acct, CONFIG.mint, ABI.mint, "mintSponsored", [saved.commit], "Sortes mint");
-      patch({ step: "committed", commitTx: res.txHash });
-      // The native tx does not carry the EVM request id: find it by our commitment.
-      let id: bigint | undefined;
-      for (let i = 0; i < 20 && id === undefined; i++) {
-        id = await findRequestByCommit(acct.evm, saved.commit, 2_000n);
-        if (id === undefined) await sleep(1500);
-      }
-      if (id === undefined) throw new Error("Mint sent but the request was not found yet. Reopen this page shortly; your secret is saved.");
-      track(saved, id, await tokenOfRequest(id));
-    } catch (e: any) {
-      patch({ step: "error", message: friendly(e) });
-    }
-  }, [qorex]);
+  // A secret is made as soon as the page opens so the card can show it (masked) before the commit.
+  useEffect(() => { setSecret(newSecret()); }, []);
+  const regenerate = useCallback(() => setSecret(newSecret()), []);
 
   /** Follow a request to the end. Also used to resume after a reload. */
-  const track = useCallback((saved: SavedSecret, requestId: bigint, tokenId: bigint) => {
+  const track = useCallback((saved: SavedSecret, requestId: bigint, tokenId: bigint, p: Path) => {
     updateSecret(saved.commit, { requestId: requestId.toString(), tokenId: tokenId.toString() });
-    patch({ requestId, tokenId, saved: { ...saved, requestId: requestId.toString(), tokenId: tokenId.toString() } });
+    patch({ requestId, tokenId, saved: { ...saved, requestId: requestId.toString(), tokenId: tokenId.toString() }, path: p });
     let revealing = false;
     clearInterval(poll.current);
     const tick = async () => {
       try {
-        const [r, head] = await Promise.all([readRequest(requestId), publicClient.getBlockNumber()]);
-        const lot = await readLot(tokenId);
+        const [req, head, lot] = await Promise.all([readRequest(requestId), publicClient.getBlockNumber(), readLot(tokenId)]);
         if (lot.finalized) {
           clearInterval(poll.current);
-          return patch({ step: lot.isFloor ? "timedOut" : "revealed", floor: lot.isFloor, status: r.status });
+          return patch({ req, head, lot, step: lot.isFloor ? "timedOut" : "revealed", floor: lot.isFloor });
         }
-        if (r.status === Status.Requested) return patch({ step: head > r.lockBlock ? "lockPassed" : "committed", status: r.status });
-        if (r.status === Status.HouseRevealed && !revealing) {
-          revealing = true;
-          patch({ step: "houseRevealed", status: r.status });
-          await sendUserReveal(saved, requestId);
-          revealing = false;
+        if (req.status === Status.Requested) return patch({ req, head, lot, step: head > req.lockBlock ? "lockPassed" : "committed" });
+        if (req.status === Status.HouseRevealed) {
+          patch({ req, head, lot, step: "houseRevealed" });
+          if (!revealing) { revealing = true; await sendUserReveal(saved, requestId, p); revealing = false; }
           return;
         }
-        if (r.status === Status.Fulfilled) return patch({ step: "userRevealSent", status: r.status });
-        if (r.status === Status.HouseTimedOut || r.status === Status.UserTimedOut) return patch({ step: "timedOut", floor: true, status: r.status });
-      } catch {
-        /* transient RPC errors: keep polling */
-      }
+        if (req.status === Status.Fulfilled) return patch({ req, head, lot, step: "userRevealSent" });
+        if (req.status === Status.HouseTimedOut || req.status === Status.UserTimedOut) return patch({ req, head, lot, step: "timedOut", floor: true });
+      } catch { /* transient RPC errors: keep polling */ }
     };
     void tick();
     poll.current = setInterval(tick, 2500);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Relay through the house daemon (no second signature); fall back to the wallet. */
-  async function sendUserReveal(saved: SavedSecret, requestId: bigint) {
+  async function sendUserReveal(saved: SavedSecret, requestId: bigint, p: Path) {
     const relayed = await relayReveal(requestId, saved.secret);
-    if (relayed.ok) return patch({ step: "userRevealSent", revealTx: relayed.tx });
+    if (relayed.ok) { patch({ revealTx: relayed.tx, note: undefined }); return; }
+    patch({ note: "The house relay did not answer, so your own reveal is needed. Press Reveal and draw." });
+  }
+
+  const reveal = useCallback(async () => {
+    const s = state.saved, id = state.requestId;
+    if (!s || id === undefined) return;
     try {
-      if (saved.path === "qorex") {
-        const acct = qorex ?? (await connectQorex());
-        const res = await qorexCall(acct, CONFIG.house, ABI.house, "revealUser", [requestId, saved.secret], "Sortes reveal");
-        patch({ step: "userRevealSent", revealTx: res.txHash });
+      patch({ note: undefined });
+      if (s.path === "qorex") {
+        const acct = wallet.qorex ?? (await wallet.connectQorex());
+        if (!acct) return;
+        const res = await qorexCall(acct, CONFIG.house, ABI.house, "revealUser", [id, s.secret], "Sortes reveal");
+        patch({ revealTx: res.txHash });
       } else {
-        const hash = await writeContractAsync({ address: CONFIG.house, abi: ABI.house, functionName: "revealUser", args: [requestId, saved.secret] });
-        patch({ step: "userRevealSent", revealTx: hash });
+        const hash = await writeContractAsync({ address: CONFIG.house, abi: ABI.house, functionName: "revealUser", args: [id, s.secret] });
+        patch({ revealTx: hash });
+      }
+    } catch (e: any) { patch({ error: classify(e) }); }
+  }, [state.saved, state.requestId, wallet, writeContractAsync]);
+
+  function begin(minter: Address, p: Path) {
+    const sec = secret ?? newSecret();
+    const commit = commitmentOf(sec, minter, CONFIG.mint, BigInt(CONFIG.evmChainId));
+    const saved: SavedSecret = { secret: sec, commit, minter, createdAt: Date.now(), path: p };
+    saveSecret(saved);
+    setState({ step: "committing", path: p, saved });
+    return saved;
+  }
+
+  const start = useCallback(async () => {
+    try {
+      if (path === "evm") {
+        if (!wallet.address || wallet.kind !== "evm") throw new Error("connect MetaMask first");
+        if (!wallet.evmChainOk) throw new Error("wrong network");
+        const saved = begin(wallet.address, "evm");
+        const { price } = await readMintStats();
+        const bal = await publicClient.getBalance({ address: wallet.address });
+        if (bal < price) throw Object.assign(new Error("insufficient funds"), { have: bal, need: price });
+        const hash = await writeContractAsync({ address: CONFIG.mint, abi: ABI.mint, functionName: "mint", args: [saved.commit], value: price });
+        patch({ step: "committed", commitTx: hash });
+        const rc = await publicClient.waitForTransactionReceipt({ hash });
+        if (rc.status !== "success") throw new Error("the mint reverted (is your EVM window open in QoreX?)");
+        const ev = parseEventLogs({ abi: ABI.mint, logs: rc.logs, eventName: "Minted" })[0] as any;
+        track(saved, BigInt(ev.args.requestId), BigInt(ev.args.tokenId), "evm");
+      } else {
+        const acct = (wallet.qorex ?? (await wallet.connectQorex())) as QorexAccount | undefined;
+        if (!acct) return;
+        if (!acct.canSend) throw new Error("This QoreX build cannot sign dApp transactions yet. Update QoreX.");
+        const saved = begin(acct.evm, "qorex");
+        const res = await qorexCall(acct, CONFIG.mint, ABI.mint, "mintSponsored", [saved.commit], "Sortes mint");
+        patch({ step: "committed", commitTx: res.txHash });
+        // The native tx does not carry the EVM request id: find it by our commitment.
+        let id: bigint | undefined;
+        for (let i = 0; i < 24 && id === undefined; i++) {
+          id = await findRequestByCommit(acct.evm, saved.commit, 2_000n);
+          if (id === undefined) await new Promise((r) => setTimeout(r, 1500));
+        }
+        if (id === undefined) throw new Error("Mint sent but the request was not found yet. Reopen this page shortly; your secret is saved.");
+        track(saved, id, await tokenOfRequest(id), "qorex");
       }
     } catch (e: any) {
-      patch({ message: "Your reveal is needed: " + friendly(e) });
+      const price = "1 QOR";
+      setState((s) => ({ ...s, step: "error", error: classify(e, e?.have !== undefined ? { have: `${(Number(e.have) / 1e18).toFixed(2)} QOR`, need: `${(Number(e.need) / 1e18).toFixed(3)} QOR` } : { need: price }) }));
     }
-  }
+  }, [path, wallet, writeContractAsync, secret, track]);
 
   /** Resume a request whose secret is saved in this browser. */
   const resume = useCallback(async (requestId: bigint) => {
     const saved = secretForRequest(requestId.toString());
     if (!saved) throw new Error("No saved secret for this request in this browser.");
+    setPath(saved.path);
     setState({ step: "committed", path: saved.path, saved });
-    track(saved, requestId, await tokenOfRequest(requestId));
+    track(saved, requestId, await tokenOfRequest(requestId), saved.path);
   }, [track]);
+
+  const reset = useCallback(() => { clearInterval(poll.current); setState({ step: "idle" }); setSecret(newSecret()); }, []);
+  const dismissError = useCallback(() => setState((s) => ({ ...s, step: s.requestId !== undefined ? s.step : "idle", error: undefined })), []);
 
   useEffect(() => () => clearInterval(poll.current), []);
 
-  return { state, mintWithEvm, mintWithQorex, resume, qorex, setQorex, backup: () => state.saved && downloadBackup(state.saved) };
+  return { state, path, setPath, secret, regenerate, start, reveal, resume, reset, dismissError, backup: () => state.saved && downloadBackup(state.saved) };
 }
 
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-export function friendly(e: any): string {
-  const m = String(e?.shortMessage ?? e?.message ?? e);
-  if (/no open EVM authori[sz]ation window|code 26/i.test(m)) return "Your EVM window is closed. Open one in QoreX (EVM access window), then try again.";
-  if (/User rejected|rejected the request|denied/i.test(m)) return "You cancelled in the wallet.";
-  if (/PoolEmpty/.test(m)) return "The sponsor pool is empty right now. Use the paid mint, or try later.";
-  if (/SponsorLimit/.test(m)) return "This wallet has used its free mints.";
-  if (/SoldOut/.test(m)) return "Sold out.";
-  return m.length > 220 ? m.slice(0, 220) + "…" : m;
-}
+export type MintCtl = ReturnType<typeof useMint>;

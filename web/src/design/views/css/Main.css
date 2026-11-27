@@ -1,0 +1,29 @@
+.pg-Main a{color:inherit}
+.pg-Main .fr{font-family:'Fraunces',serif}
+.pg-Main .pg.light{--well:#e4dccd;--stage:#e4dccd;--bg:#ece6db;--card:#f7f2e9;--ink:#16110d;--inkr:22,17,13;--mut:#5e554a;--lab2:#6b6155;--acc:#c4552d;--band:#16110d;--bandCard:#262019;--bandDeep:#0e0b09;--sh:rgba(60,40,20,.12);--t1:#7a6f62;--t2:#4f7a3d;--t3:#2b6a86;--t4:#c4552d}
+.pg-Main .pg.dark{--well:#212124;--stage:#212124;--bg:#111112;--card:#19191b;--ink:#f2f0eb;--inkr:242,240,235;--mut:#b4b2ad;--lab2:#93918c;--acc:#e0703f;--band:#19191b;--bandCard:#232326;--bandDeep:#0b0b0c;--sh:rgba(0,0,0,.4);--t1:#a8a6a1;--t2:#8cc27a;--t3:#79b8d6;--t4:#e0703f}
+.pg-Main .lab{font-family:'Manrope',sans-serif;font-weight:700;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+.pg-Main .pb{transition:transform .2s,opacity .2s}.pg-Main .pb:hover{transform:translateY(-1px);opacity:.92}
+.pg-Main .ob{transition:background .2s,color .2s}.pg-Main .ob:hover{background:var(--ink)!important;color:var(--bg)!important}
+.pg-Main .lift{transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s}.pg-Main .lift:hover{transform:translateY(-6px);box-shadow:0 30px 60px rgba(70,45,25,.16)}
+.pg-Main .row{transition:background .2s}.pg-Main .row:hover{background:rgba(var(--inkr),.04)}
+.pg-Main .tab{cursor:pointer;background:none;border:0;text-align:left}
+.pg-Main .pg{container-type:inline-size}
+@container (max-width: 640px){
+ .pg-Main .prow{grid-template-columns:76px 1fr auto!important;gap:12px!important}
+ .pg-Main .prow .pt{display:none}
+ .pg-Main .prow .fr{font-size:24px!important}
+ .pg-Main .rrow{grid-template-columns:48px 1fr!important;row-gap:6px!important}
+ .pg-Main .rrow .rres{grid-column:2}
+ .pg-Main .mr{margin-top:-24px!important;border-radius:26px 26px 0 0!important}
+}
+@container (min-width: 1800px){.pg-Main .mr>section:not(.full){padding-left:calc((100% - 1600px) / 2)!important;padding-right:calc((100% - 1600px) / 2)!important}}
+.pg-Main .mq{overflow:hidden;padding:12px 0}
+.pg-Main .trk{display:flex;gap:16px;padding-right:16px;width:max-content;animation:mq 60s linear infinite}
+.pg-Main .trk.rev{animation-direction:reverse;animation-duration:72s}
+.pg-Main .mq:hover .trk,.pg-Main .mq:focus-within .trk{animation-play-state:paused}
+@keyframes mq{to{transform:translateX(-50%)}}
+.pg-Main .lc{transition:transform .45s cubic-bezier(.2,.8,.2,1),border-color .3s}.pg-Main .lc:hover,.pg-Main .lc:focus-visible{transform:translateY(-10px) rotate(-1.2deg);border-color:var(--acc)!important}
+@media (prefers-reduced-motion: reduce){.pg-Main .mq{overflow-x:auto}.pg-Main .trk{animation:none!important}}
+@keyframes dropIn{from{opacity:0;transform:translateY(-12px)}}.pg-Main .drop{animation:dropIn .5s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion: reduce){.pg-Main *{animation:none!important;transition:none!important}}

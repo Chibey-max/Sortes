@@ -1,0 +1,7 @@
+.pg-MintCard .mc{container-type:inline-size}
+.pg-MintCard .mc .stp{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pg-MintCard .mc .stp span{height:4px;border-radius:2px;background:var(--line2)}
+.pg-MintCard .mc .stp span.on{background:var(--acc)}
+.pg-MintCard .mc .sl{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.pg-MintCard .mc .sl b{font:600 11px 'Manrope',sans-serif;color:var(--lab)}
+.pg-MintCard .mc .sl b.on{color:var(--ink)}

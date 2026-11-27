@@ -56,7 +56,7 @@ Fund the QoreX sponsor pool (1 QOR per sponsored mint): `npm run cli -- sponsor 
 
 ## 4. Web app
 
-Set the variables from `web/.env.example` in Vercel, deploy `web/`.
+Set the variables from `web/.env.example` in Vercel, deploy `web/`. Set `NEXT_PUBLIC_FROM_BLOCK` to the house deploy block so the gallery and house pages query events from there, not from genesis.
 
 ## 5. Attacks and checks
 

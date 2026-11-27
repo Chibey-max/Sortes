@@ -1,0 +1,6 @@
+.pg-LotArt .la-sheen{transform:translateX(-120px)}
+@keyframes la-sweep{from{transform:translateX(-120px)}to{transform:translateX(300px)}}
+.pg-LotArt .la-live .la-sheen{animation:la-sweep 5.5s cubic-bezier(.4,0,.2,1) infinite}
+.pg-LotArt .la-live .la-frame{animation:la-dash 14s linear infinite}
+@keyframes la-dash{to{stroke-dashoffset:-120}}
+@media (prefers-reduced-motion: reduce){.pg-LotArt .la-live .la-sheen,.pg-LotArt .la-live .la-frame{animation:none}}

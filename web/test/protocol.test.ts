@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { commitmentOf, deriveTraits, resultFrom, variantName } from "../src/lib/protocol";
+import { commitmentOf, resultFrom } from "../src/lib/protocol";
+import { WEIGHTS_BPS, artProps, deriveTraits, greek, sectionLetter, variantName } from "../src/lib/traits";
 
 // Vectors generated from the Solidity code: contracts/script/dev/Vectors.t.sol
 const v = JSON.parse(readFileSync(resolve(__dirname, "vectors.json"), "utf8"));
@@ -10,10 +11,27 @@ const v = JSON.parse(readFileSync(resolve(__dirname, "vectors.json"), "utf8"));
 test("trait derivation and names match the contracts on 40 results", () => {
   for (const t of v.traits) {
     const s = deriveTraits(t.result);
-    assert.deepEqual(s.tier, t.tier, t.result);
-    assert.deepEqual(s.variant, t.variant, t.result);
-    assert.deepEqual(s.tier.map((tier, i) => variantName(i, tier, s.variant[i])), t.names);
+    assert.deepEqual(s, t.traits, t.result);
+    assert.deepEqual(s.map((x, i) => variantName(i, x)), t.names);
   }
+});
+
+test("Greek numerals and section letters match the renderer", () => {
+  for (const g of v.greek) {
+    assert.equal(greek(g.n), g.numeral, `numeral ${g.n}`);
+    assert.equal(sectionLetter(g.n), g.letter, `letter ${g.n}`);
+  }
+});
+
+test("each trait's weights sum to 10,000 and the published odds hold", () => {
+  for (const w of WEIGHTS_BPS) assert.equal(w.reduce((a, b) => a + b, 0), 10000);
+  assert.equal(WEIGHTS_BPS[0][5], 800); // gold 8%
+  assert.equal(WEIGHTS_BPS[4][3], 400); // legendary 4%
+});
+
+test("art props map every variant of every trait", () => {
+  assert.deepEqual(artProps([5, 5, 4, 4, 3]), { field: "gold", glyph: "kleros", engraving: "meander", seal: "star", aura: "legendary" });
+  assert.deepEqual(artProps([1, 0, 0, 0, 0]), { field: "pewter", glyph: "circle", engraving: "lines", seal: "dots", aura: "none" });
 });
 
 test("commitment matches SortesHouse.commitmentOf", () => {

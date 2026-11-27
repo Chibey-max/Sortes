@@ -1,0 +1,6 @@
+.pg-Verify .vg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+.pg-Verify .wc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pg-Verify .ck{display:grid;grid-template-columns:28px 1fr auto;gap:14px;align-items:start;padding:16px 0;border-top:1px solid var(--line)}
+.pg-Verify .sbar{display:flex;gap:10px}
+@container (max-width: 980px){.pg-Verify .vg{grid-template-columns:minmax(0,1fr)}.pg-Verify .wc{grid-template-columns:1fr 1fr}}
+@container (max-width: 560px){.pg-Verify .wc{grid-template-columns:minmax(0,1fr)}.pg-Verify .sbar{flex-direction:column}.pg-Verify .ck{grid-template-columns:28px 1fr}.pg-Verify .ck .cv{grid-column:2}}

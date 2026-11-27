@@ -1,0 +1,6 @@
+.pg-Errors .es{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.pg-Errors .dlg{padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:0 30px 70px rgba(0,0,0,.08)}
+.pg-Errors .ico{width:44px;height:44px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center}
+.pg-Errors .toasts{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.pg-Errors .toast{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--surface);border:1px solid var(--line2);box-shadow:0 16px 40px rgba(0,0,0,.1)}
+@container (max-width: 420px){.pg-Errors .es,.pg-Errors .toasts{grid-template-columns:minmax(0,1fr)}}

@@ -1,0 +1,12 @@
+/* GENERATED from the Sortes design (ErrorPage.dc.html) by dc2tsx. The markup is the design's;
+ * behaviour lives in the component that renders this view. */
+import { Fragment } from "react";
+import { A } from "@/components/A";
+import { css } from "@/lib/css";
+import { Footer } from "@/design/Footer";
+import { Nav } from "@/design/Nav";
+import "./css/ErrorPage.css";
+
+export function ErrorPageView({ v }: { v: any }) {
+  return (<div className="pg-ErrorPage" style={{ display: "contents" }}><div className={`pg ${v.th}`}><Nav active="" dark={v.isDark} wallet={v.wallet} onTheme={v.setTheme} /><main><section className="wrap" style={css("padding-top: clamp(24px, 4cqw, 60px); padding-bottom: clamp(60px, 8cqw, 120px)")}><div className="eg"><div style={css("display: flex; flex-direction: column; gap: 18px")}><span className="code" aria-hidden="true">{v.code}</span><span className="lab" style={css(`color: ${v.tone}`)}>{v.label}</span><h1 className="h1" style={css("font-size: clamp(38px, 5cqw, 80px)")}>{v.t1}{" "}<span className="it">{v.t2}</span></h1><p className="lead" style={css("max-width: 520px")}>{v.body}</p>{(v.hasSearch) ? (<><form style={css("display: flex; gap: 8px; max-width: 520px; flex-wrap: wrap")} role="search" onSubmit={v.noop}><label className="sr" htmlFor="ef">{"Find a lot by number"}</label><input id="ef" name="lot" className="inp" placeholder="Lot number" style={css("flex: 1; min-width: 200px")} /><button className="btn btn-g" type="submit">{"Find"}</button></form></>) : null}{(v.hasStatus) ? (<><div className="card" style={css("padding: 6px 18px; max-width: 520px")}>{(v.status as any[]).map((s, i0) => (<Fragment key={i0}><div className="kv" style={css(`border-top: ${s.b}`)}><span>{s.k}</span><span style={css("display: inline-flex; align-items: center; gap: 8px")}><span className={`dot ${s.p}`} style={css(`background: ${s.c}`)} /><span className="mono" style={css("font-size: 13px")}>{s.v}</span></span></div></Fragment>))}</div></>) : null}<div style={css("display: flex; gap: 10px; flex-wrap: wrap")}><A className="btn btn-p" href={v.h1}>{v.a1}</A><A className="btn btn-g" href={v.h2}>{v.a2}</A></div><p className="small" style={css("margin: 0")}>{v.foot}</p></div><figure className="ev" style={css("margin: 0")}><img src={v.img} alt={v.alt} style={css(`object-position: ${v.pos}; transform: scale(${v.sc}); transform-origin: ${v.pos}; opacity: ${v.op}; filter: grayscale(${v.gs})`)} /></figure></div></section></main><Footer dark={v.isDark} /></div></div>);
+}

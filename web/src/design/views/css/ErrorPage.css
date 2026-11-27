@@ -1,0 +1,5 @@
+.pg-ErrorPage .eg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,4cqw,64px);align-items:center;min-height:620px}
+.pg-ErrorPage .ev{position:relative;border-radius:28px;background:var(--surface2);border:1px solid var(--line);overflow:hidden;aspect-ratio:1/1}
+.pg-ErrorPage .ev img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pg-ErrorPage .code{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(90px,14cqw,220px);line-height:.8;letter-spacing:-.05em;color:var(--line2)}
+@container (max-width: 900px){.pg-ErrorPage .eg{grid-template-columns:minmax(0,1fr);min-height:0}.pg-ErrorPage .ev{aspect-ratio:4/3;order:-1}}

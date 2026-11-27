@@ -10,7 +10,7 @@ Sortes is a randomness house that any QoreChain app plugs into, shipped with **S
 2. **Watch** the tracker: committed → lock block passed → house revealed → your reveal → traits revealed.
 3. **Verify** it at `/verify`: six checks recomputed in your browser from chain data (hash chain, commitment, lock hash, result, traits, deadlines).
 4. **Read the attacks** at `/attacks`: each one was sent as a real diana transaction and hit the error shown.
-5. **Check the tests**: `cd contracts && forge test` (82 tests), `cd house && npm test` (5 end-to-end tests), `cd web && npm test` (5 tests), and `node scripts/smoke.mjs` for the whole stack.
+5. **Check the tests**: `cd contracts && forge test` (86 tests), `cd house && npm test` (5 end-to-end tests), `cd web && npm test` (8 tests), and `node scripts/smoke.mjs` for the whole stack.
 
 ## Why it exists
 
@@ -83,18 +83,32 @@ Not deployed to diana yet. Steps: [`docs/DEPLOY.md`](docs/DEPLOY.md). Addresses 
 | House account (qor1 / 0x) | not deployed |
 | Enrollment (ML-DSA-87 signed) | not deployed |
 
+## The lots
+
+Each lot is a bronze plate drawn entirely on chain (`SortesRenderer`, no image host). Five traits come from the result, each rolled as `keccak256(result, i) % 10000` against these odds:
+
+| Trait | Variants (odds %) |
+| --- | --- |
+| Metal | bronze 26, silver 22, iron 18, verdigris 14, black iron 12, gold 8 |
+| Emblem | owl 25, column 22, amphora 18, scales 16, laurel 14, kleros 5 |
+| Border | bead and reel 28, dentil 24, egg and dart 20, running wave 16, meander 12 |
+| Seal | wheel 30, double owl 25, owl in wreath 20, gorgon 16, star 9 |
+| Frame | common 60, uncommon 26, rare 10, legendary 4 |
+
+A lot whose reveal window closes keeps the **floor** plate (silver, owl, bead and reel, wheel, common). Sponsored mints from QoreX come from a pool (3 per wallet); MetaMask pays 1 QOR.
+
 ## Tests
 
 | Suite | Count | Run |
 | --- | --- | --- |
 | Foundry: SortesHouse unit + guarantees + fuzz | 55 | `forge test` in `contracts/` |
-| Foundry: SortesMint | 17 | |
+| Foundry: SortesMint | 21 | |
 | Foundry: SortesDice | 7 | |
 | Foundry: invariants (2,048 calls each) | 3 | |
-| **Foundry total** | **82** (75 unit, 4 fuzz, 3 invariant) | |
+| **Foundry total** | **86** (79 unit, 4 fuzz, 3 invariant) | |
 | House daemon end-to-end on anvil | 5 | `npm test` in `house/` |
-| Web protocol mirror vs Solidity vectors | 5 | `npm test` in `web/` |
-| Full stack in a browser | 1 script, 10 checks | `node scripts/smoke.mjs` |
+| Web protocol mirror vs Solidity vectors (incl. traits, numerals) | 8 | `npm test` in `web/` |
+| Full stack in a browser | 1 script, 40+ checks (every page, dark mode, phone width, full mint flow via mock QoreX) | `node scripts/smoke.mjs` |
 | Live diana: daemon's ML-DSA-87 signature through real `pqcVerify` | 1 | `npm run test:live` in `house/` |
 
 Locally the precompiles are mocks etched at `0x…0a01` / `0x…0a02` (`contracts/test/mocks/PqcMock.sol`, clearly marked); the real ML-DSA-87 path is proven against diana.

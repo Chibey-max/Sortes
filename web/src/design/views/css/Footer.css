@@ -1,0 +1,5 @@
+.pg-Footer .ft{container-type:inline-size;background:var(--band);color:var(--bandInk);font-family:'Manrope',sans-serif}
+.pg-Footer .ft .cols{display:grid;grid-template-columns:1.6fr repeat(3,1fr);gap:40px}
+.pg-Footer .ft a{color:var(--bandMut);text-decoration:none;font-size:14px;line-height:2.1}
+.pg-Footer .ft a:hover{color:var(--bandInk)}
+@container (max-width: 760px){.pg-Footer .ft .cols{grid-template-columns:1fr 1fr}.pg-Footer .ft .brand{grid-column:1 / -1}}

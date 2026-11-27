@@ -1,7 +1,8 @@
 import { parseAbiItem, zeroHash, type Hex } from "viem";
 import { CONFIG } from "./config";
 import { publicClient, readHouseParams, readLot, readRequest, tokenOfRequest } from "./chain";
-import { FLOOR, Status, commitmentOf, deriveTraits, hashForward, resultFrom } from "./protocol";
+import { Status, commitmentOf, hashForward, resultFrom } from "./protocol";
+import { FLOOR, deriveTraits, variantName } from "./traits";
 
 export interface Check {
   name: string;
@@ -14,6 +15,7 @@ export interface Verification {
   tokenId?: bigint;
   status: Status;
   checks: Check[];
+  inputs: { position: bigint; houseValue: Hex; secret?: Hex; lockHash: Hex; lockBlock: bigint; requestBlock: bigint; result: Hex; consumer: string; beneficiary: string };
 }
 
 const FULFILLED = parseAbiItem("event Fulfilled(uint256 indexed id, bytes32 secret, bytes32 result)");
@@ -100,8 +102,8 @@ export async function verify(input: { requestId?: bigint; tokenId?: bigint }): P
     const lot = await readLot(tokenId);
     if (lot.finalized) {
       const expect = r.status === Status.Fulfilled ? deriveTraits(r.result) : FLOOR;
-      const ok = JSON.stringify(expect.tier) === JSON.stringify(lot.tier) && JSON.stringify(expect.variant) === JSON.stringify(lot.variant);
-      checks.push({ name: "Traits recompute from the result", pass: ok, detail: ok ? `tiers [${lot.tier}] variants [${lot.variant}] match` : `expected [${expect.tier}]/[${expect.variant}], token has [${lot.tier}]/[${lot.variant}]` });
+      const ok = JSON.stringify(expect) === JSON.stringify(lot.traits);
+      checks.push({ name: "Traits recompute from the result", pass: ok, detail: ok ? lot.traits.map((v, i) => variantName(i, v)).join(" · ") + " match" : `expected [${expect}], token has [${lot.traits}]` });
     } else {
       checks.push({ name: "Traits recompute from the result", pass: null, detail: "Lot not finalized yet." });
     }
@@ -120,7 +122,7 @@ export async function verify(input: { requestId?: bigint; tokenId?: bigint }): P
   }
   checks.push({ name: "Finished within its deadlines", pass: deadlineOk, detail });
 
-  return { requestId, tokenId, status: r.status, checks };
+  return { requestId, tokenId, status: r.status, checks, inputs: { position: r.position, houseValue: r.houseValue, secret, lockHash: r.lockHash, lockBlock: r.lockBlock, requestBlock: r.requestBlock, result: r.result, consumer: r.consumer, beneficiary: r.beneficiary } };
 }
 
 function short(h: string) {
