@@ -53,6 +53,10 @@ export async function readHouseParams() {
   return Object.fromEntries(names.map((n, i) => [n, vals[i]])) as Record<(typeof names)[number], any>;
 }
 
+export async function readOwed(who: Address): Promise<bigint> {
+  return (await publicClient.readContract({ address: CONFIG.house, abi: ABI.house, functionName: "owed", args: [who] })) as bigint;
+}
+
 export async function readMintStats() {
   const [total, max, pool, price, perWallet] = await Promise.all(
     ["totalMinted", "MAX_SUPPLY", "sponsorPool", "price", "SPONSORED_PER_WALLET"].map((fn) =>

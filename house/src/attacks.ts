@@ -11,6 +11,7 @@
  *   tsx src/attacks.ts <probe|txhash|forged-reveal|swapped-secret|thief|replay|silent-house|silent-user|all>
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { signDigest } from "./sign.js";
@@ -60,21 +61,39 @@ class Runner {
     const hash = await this.wallet.sendTransaction({ to: this.cfg.houseAddress, data, gas, account: this.account, chain: this.wallet.chain } as any);
     const rc = await this.pub.waitForTransactionReceipt({ hash });
     if (rc.status === "success") return { tx: hash, error: "succeeded (no revert)" };
-    return { tx: hash, error: await this.revertReason(data, rc.blockNumber - 1n) };
+    const fromCall = await this.revertReason(data, rc.blockNumber - 1n);
+    if (!fromCall.startsWith("reverted")) return { tx: hash, error: fromCall };
+    const fromTrace = await this.revertFromTrace(hash);
+    return { tx: hash, error: fromTrace ?? fromCall };
   }
 
-  async revertReason(data: Hex, blockNumber: bigint): Promise<string> {
+  async revertFromTrace(hash: Hex): Promise<string | undefined> {
     try {
-      await this.pub.call({ to: this.cfg.houseAddress, data, account: this.account.address, blockNumber });
-      return "no revert on replay";
-    } catch (e: any) {
-      const raw: Hex | undefined = e?.cause?.data ?? e?.data ?? e?.cause?.cause?.data;
-      if (raw && raw.length >= 10) {
+      const t: any = await this.pub.request({ method: "debug_traceTransaction", params: [hash, { tracer: "callTracer" }] });
+      const out: string = t?.output ?? t?.result?.output ?? "";
+      if (out && out.startsWith("0x") && out.length >= 10) {
         try {
-          return decodeErrorResult({ abi: HOUSE_ABI, data: raw }).errorName;
-        } catch {}
+          return decodeErrorResult({ abi: HOUSE_ABI, data: out as Hex }).errorName;
+        } catch {
+          const sel = out.slice(0, 10).toLowerCase();
+          const hit = HOUSE_ABI.filter((x: any) => x.type === "error").find(
+            (x: any) => toFunctionSelector(`${x.name}(${x.inputs.map((i: any) => i.type).join(",")})`) === sel,
+          );
+          if (hit) return hit.name;
+        }
       }
-      const text = String(e?.message ?? e);
+    } catch {}
+    try {
+      const out = execFileSync("cast", ["run", hash, "--rpc-url", this.cfg.evmRpc], { encoding: "utf8", timeout: 90_000, stdio: ["ignore", "pipe", "pipe"] });
+      const sel = out.match(/custom error (0x[0-9a-fA-F]{8})/)?.[1]?.toLowerCase();
+      if (sel) {
+        const hit = HOUSE_ABI.filter((x: any) => x.type === "error").find(
+          (x: any) => toFunctionSelector(`${x.name}(${x.inputs.map((i: any) => i.type).join(",")})`) === sel,
+        );
+        if (hit) return hit.name;
+      }
+    } catch (e: any) {
+      const text = String(e?.stderr ?? e?.message ?? e);
       const sel = text.match(/custom error (0x[0-9a-fA-F]{8})/)?.[1]?.toLowerCase();
       if (sel) {
         const hit = HOUSE_ABI.filter((x: any) => x.type === "error").find(
@@ -82,8 +101,45 @@ class Runner {
         );
         if (hit) return hit.name;
       }
-      const m = text.match(/error\s+(\w+)\(/i);
-      return m ? m[1] : `reverted (${text.slice(0, 80)})`;
+    }
+    return undefined;
+  }
+
+  decodeViemRevert(e: any): string | undefined {
+    for (let cur = e, i = 0; cur && i < 10; cur = cur.cause, i++) {
+      const named = cur.data?.errorName ?? cur.shortMessage?.match(/reverted with the following reason:\s+(\w+)/)?.[1];
+      if (named) return named;
+      const raw: unknown = cur.data?.data ?? cur.data ?? cur.raw;
+      if (typeof raw === "string" && raw.startsWith("0x") && raw.length >= 10) {
+        try {
+          return decodeErrorResult({ abi: HOUSE_ABI, data: raw as Hex }).errorName;
+        } catch {}
+      }
+    }
+    const text = String(e?.shortMessage ?? e?.message ?? e);
+    const sel = text.match(/custom error (0x[0-9a-fA-F]{8})/)?.[1]?.toLowerCase();
+    if (sel) {
+      const hit = HOUSE_ABI.filter((x: any) => x.type === "error").find(
+        (x: any) => toFunctionSelector(`${x.name}(${x.inputs.map((i: any) => i.type).join(",")})`) === sel,
+      );
+      if (hit) return hit.name;
+    }
+    const m = text.match(/error\s+(\w+)\(/i);
+    return m?.[1];
+  }
+
+  async revertReason(data: Hex, blockNumber: bigint): Promise<string> {
+    try {
+      await this.pub.call({ to: this.cfg.houseAddress, data, account: this.account.address, blockNumber });
+    } catch (e: any) {
+      const n = this.decodeViemRevert(e);
+      if (n) return n;
+    }
+    try {
+      await this.pub.call({ to: this.cfg.houseAddress, data, account: this.account.address });
+      return "no revert on replay";
+    } catch (e: any) {
+      return this.decodeViemRevert(e) ?? `reverted (${String(e?.shortMessage ?? e?.message ?? e).slice(0, 80)})`;
     }
   }
 
@@ -266,8 +322,11 @@ async function main() {
     "silent-user": () => run.silentUser(),
   };
   if (which === "all") {
-    for (const [name, f] of Object.entries(steps)) {
-      if (name === "probe" && !probe) continue;
+    // replay needs earned fees from a settled request, so it runs after silent-user.
+    const order = ["probe", "txhash", "forged-reveal", "swapped-secret", "thief", "silent-house", "silent-user", "replay"];
+    for (const name of order) {
+      const f = steps[name];
+      if (!f || (name === "probe" && !probe)) continue;
       try {
         await f();
       } catch (e: any) {

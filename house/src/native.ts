@@ -120,7 +120,10 @@ export async function openDeployWindow(cfg: Config, acct: Unified, blocks: numbe
 
 /** The only contracts the daemon's window admits: the house, and the mint when configured. */
 export function windowTargets(cfg: Config): string[] {
-  return cfg.mintAddress ? [cfg.houseAddress, cfg.mintAddress] : [cfg.houseAddress];
+  const t = [cfg.houseAddress];
+  if (cfg.mintAddress) t.push(cfg.mintAddress);
+  if (cfg.probeAddress) t.push(cfg.probeAddress);
+  return t;
 }
 
 export function needsRenewal(w: WindowState, cfg: Config): boolean {

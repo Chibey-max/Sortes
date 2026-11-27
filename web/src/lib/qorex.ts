@@ -73,6 +73,7 @@ function toBase64(u8: Uint8Array): string {
 export async function qorexCall(account: QorexAccount, target: Address, abi: any[], functionName: string, args: unknown[], memo: string) {
   const native = getQorexNative();
   if (!native) throw new Error("QoreX not found");
+  await native.enable(CONFIG.cosmosChainId);
   const data = encodeFunctionData({ abi, functionName, args });
   const res = await native.signAndBroadcast({
     chainId: CONFIG.cosmosChainId,

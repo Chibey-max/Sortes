@@ -6,7 +6,7 @@ Sortes is a randomness house that any QoreChain app plugs into, shipped with **S
 
 ## Judge it in 5 minutes
 
-1. **Mint** a lot at the web app (`/`). With QoreX it is one approval and free (sponsored); with MetaMask it costs 1 QOR inside an EVM window opened from QoreX.
+1. **Mint** a lot at `/mint`. With QoreX it is one approval and free (sponsored); with MetaMask it costs 1 QOR inside an EVM window opened from QoreX. The story landing is `/`.
 2. **Watch** the tracker: committed → lock block passed → house revealed → your reveal → traits revealed.
 3. **Verify** it at `/verify`: six checks recomputed in your browser from chain data (hash chain, commitment, lock hash, result, traits, deadlines).
 4. **Read the attacks** at `/attacks`: each one was sent as a real diana transaction and hit the error shown.
@@ -73,15 +73,18 @@ Sortes covers outcomes between one user and one app: mints, loot, dice, card dra
 
 ## Deployment
 
-Not deployed to diana yet. Steps: [`docs/DEPLOY.md`](docs/DEPLOY.md). Addresses and transaction hashes go here once live:
+Live on `qorechain-diana` (27 Nov 2026). House `MIN_BOND` is 20 QOR so the first faucet claim could enroll; later `addBond` raises it toward the 200 QOR in the PRD. Steps: [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 | Item | Address / hash |
 | --- | --- |
-| SortesHouse | not deployed |
-| SortesMint | not deployed |
-| SortesDice | not deployed |
-| House account (qor1 / 0x) | not deployed |
-| Enrollment (ML-DSA-87 signed) | not deployed |
+| SortesHouse | `0x09331e1a478456cebb031c31c07f54d53e91b362` |
+| SortesRenderer | `0xd58209857055629a48194dff76f04c6e0c9d4521` |
+| SortesMint | `0x7193f4d21082cc8e5f030e2e09917f47a6acba8d` |
+| SortesDice | `0x2a35a5daca332afff6349ebcf2c45f71c154a50b` |
+| RandomnessProbe | `0x040010ea2b07bd373e680ce00bdb44097a65ab8a` |
+| House account (qor1 / 0x) | `qor1sdkzva02ag94rndrcfahtv587qlj92edsfvgle` / `0x836c2675eAEA0b51cDA3c27b75B287F03f22aB2D` |
+| Enrollment (ML-DSA-87 signed) | `0x0277197d7a2ca78cde9a38cebb8b40d0198f7986d96facb9dc0e3048a412fe11` |
+| House deploy tx | `0x151969305e12fc7f9b0f5e822c24f3c4f36b629b356bed90a21b54c98ddd13d1` |
 
 ## The lots
 

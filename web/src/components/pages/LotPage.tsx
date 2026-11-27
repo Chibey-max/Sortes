@@ -13,6 +13,7 @@ import { useTheme } from "@/lib/theme";
 import { useToast } from "@/lib/toast";
 import { useWallet } from "@/lib/wallet";
 import { verify, type Verification } from "@/lib/verify";
+import { LotActions } from "@/components/LotActions";
 
 const ZERO = "0x" + "0".repeat(64);
 
@@ -108,7 +109,12 @@ export function LotPage({ id }: { id: string }) {
     ].map((s) => ({ t: s[0], d: s[1], h: s[2], url: s[4], c: s[3] === 2 ? "var(--warn)" : s[3] ? "var(--ok)" : "var(--line2)", f: s[3] === 1 ? "var(--ok)" : "transparent" })),
     noop: () => {},
   };
-  return <LotView v={v} />;
+  return (
+    <>
+      <LotView v={v} />
+      <LotActions requestId={req.id} tokenId={lot.tokenId} />
+    </>
+  );
 }
 
 function skeleton(n: number) {

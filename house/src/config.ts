@@ -12,6 +12,8 @@ export interface Config {
   houseAddress: `0x${string}`;
   /** Optional SortesMint: the daemon finalizes its lots and the window also admits it. */
   mintAddress?: `0x${string}`;
+  /** Optional RandomnessProbe: attack txs that record prevrandao. */
+  probeAddress?: `0x${string}`;
   keystorePath: string;
   dataDir: string;
   healthPort: number;
@@ -45,6 +47,7 @@ export function loadConfig(opts: { needHouse?: boolean } = {}): Config {
     evmChainId: Number(env("SORTES_EVM_CHAIN_ID", "9800")),
     houseAddress,
     mintAddress: (process.env.SORTES_MINT_CONTRACT || undefined) as `0x${string}` | undefined,
+    probeAddress: (process.env.SORTES_PROBE_CONTRACT || undefined) as `0x${string}` | undefined,
     keystorePath: resolve(env("SORTES_KEYSTORE", resolve(dataDir, "house.key.json"))),
     dataDir,
     healthPort: Number(env("SORTES_HEALTH_PORT", "8787")),

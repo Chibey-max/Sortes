@@ -24,7 +24,7 @@ export function Nav(p: NavProps) {
   const w = p.wallet || "";
   const v = {
     th: dark ? "dark" : "light", isDark: dark, isLight: !dark,
-    links: LINKS.map(([t, href]) => ({ t, href, cur: p.active === t ? "page" : "false" })),
+    links: LINKS.map(([t, href]) => ({ t, href, cur: p.active === t ? "page" : undefined })),
     hasToggle: p.showToggle !== false && p.showToggle !== "false",
     tgLabel: dark ? "Switch to light mode" : "Switch to dark mode",
     toggle: () => p.onTheme?.(dark ? "light" : "dark"),

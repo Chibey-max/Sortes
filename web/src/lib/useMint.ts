@@ -50,6 +50,7 @@ export function classify(e: any, extra?: { have?: string; need?: string }): Mint
   if (/SponsorLimit/.test(m)) return { kind: "limit", title: "This wallet used its free mints.", desc: "Each wallet gets a few sponsored mints. Use the paid mint to draw more." };
   if (/SoldOut/.test(m)) return { kind: "soldout", title: "All 1,000 lots are drawn.", desc: "The collection is sold out." };
   if (/insufficient funds|exceeds the balance|balance/i.test(m)) return { kind: "balance", title: "Not enough QOR.", desc: extra?.need ? `You need ${extra.need}. Your balance is ${extra.have ?? "lower"}.` : "A paid draw costs 1 QOR plus a small network fee." };
+  if (/qorechain-vladi|not been authorized/i.test(m)) return { kind: "network", title: "QoreX is on mainnet.", desc: "Open the extension, tap the version number at the bottom seven times, choose Switch to testnet (diana), reload this page, then mint again and approve the popup." };
   if (/chain|network|unsupported/i.test(m)) return { kind: "network", title: "Wrong network.", desc: "Switch to QoreChain diana, then try again. Nothing has been sent." };
   return { kind: "other", title: "Something went wrong.", desc: m.length > 220 ? m.slice(0, 220) + "…" : m };
 }

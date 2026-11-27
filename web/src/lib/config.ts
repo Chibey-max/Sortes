@@ -14,6 +14,7 @@ export const CONFIG = {
   explorer: "https://explore.qore.network",
   house: (process.env.NEXT_PUBLIC_HOUSE || zero) as Address,
   mint: (process.env.NEXT_PUBLIC_MINT || zero) as Address,
+  renderer: (process.env.NEXT_PUBLIC_RENDERER || zero) as Address,
   dice: (process.env.NEXT_PUBLIC_DICE || zero) as Address,
   daemonUrl: (process.env.NEXT_PUBLIC_DAEMON_URL || "").replace(/\/$/, ""),
   walletConnectProjectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || "sortes-local",

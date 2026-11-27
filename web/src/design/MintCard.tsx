@@ -10,6 +10,7 @@ import { short, num } from "@/lib/live";
 import { isDeployed } from "@/lib/config";
 import { verify } from "@/lib/verify";
 import { useEffect, useState } from "react";
+import { LotActions } from "@/components/LotActions";
 
 /** The draw card of the Mint page: connect, choose how to pay, commit, wait for the lock block, reveal, drawn. */
 export function MintCard({ ctl, dark }: { ctl: MintCtl; dark?: boolean | string }) {
@@ -108,5 +109,10 @@ export function MintCard({ ctl, dark }: { ctl: MintCtl; dark?: boolean | string 
     floorNote: state.floor ? (req?.status === 4 ? "The house missed its reveal, so you were made whole: 1 QOR back and a 2 QOR penalty from the house bond." : "The reveal window closed, so this lot has floor traits.") : undefined,
     again: ctl.reset,
   };
-  return <MintCardView v={v} />;
+  return (
+    <>
+      <MintCardView v={v} />
+      <LotActions requestId={state.requestId} tokenId={state.tokenId} />
+    </>
+  );
 }

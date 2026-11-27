@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { keccak256, parseAbiItem, decodeAbiParameters, encodeFunctionData, type Hex } from "viem";
 import { HouseView } from "@/design/views/HouseView";
-import { publicClient, blockTime, daemonHealth } from "@/lib/chain";
-import { CONFIG, isDeployed } from "@/lib/config";
+import { publicClient, blockTime, daemonHealth, readOwed } from "@/lib/chain";
+import { ABI, CONFIG, isDeployed } from "@/lib/config";
 import { logsChunked } from "@/lib/allLots";
 import { qor, useHouseParams } from "@/lib/data";
 import { num, short, useHead } from "@/lib/live";
 import { useTheme } from "@/lib/theme";
 import { useWallet } from "@/lib/wallet";
+import { useWriteContract } from "wagmi";
+import { classify } from "@/lib/useMint";
 
 const EV = {
   revealed: parseAbiItem("event HouseRevealed(uint256 indexed id, bytes32 value, bytes32 lockHash)"),
@@ -28,7 +30,10 @@ interface Ev { kind: string; block: bigint; amount?: bigint; status?: number }
 export function HousePage() {
   const { theme, setTheme } = useTheme();
   const wallet = useWallet();
+  const { writeContractAsync } = useWriteContract();
   const params = useHouseParams().data;
+  const [owed, setOwed] = useState(0n);
+  const [claimMsg, setClaimMsg] = useState<string>();
   const { head } = useHead(8000);
   const [events, setEvents] = useState<Ev[] | null>(null);
   const [fp, setFp] = useState<string>();
@@ -59,11 +64,12 @@ export function HousePage() {
         if (lastRv) blockTime(lastRv.block).then((t) => live && setLastReveal(Math.max(0, Math.round(Date.now() / 1000 - t)))).catch(() => {});
       } catch { if (live) setEvents((e) => e ?? []); }
       daemonHealth().then((h) => live && setHealth(h));
+      if (wallet.address) readOwed(wallet.address).then((n) => live && setOwed(n)).catch(() => {});
     };
     void load();
     const t = setInterval(load, 20000);
     return () => { live = false; clearInterval(t); };
-  }, []);
+  }, [wallet.address]);
 
   useEffect(() => {
     if (!isDeployed || !params?.house) return;
@@ -116,5 +122,28 @@ export function HousePage() {
     rules: [["01", "An ML-DSA-87 signature", "Withdrawals, payout changes, new hash chains and pausing all need a fresh post-quantum signature. A stolen ECDSA key moves nothing."], ["02", "A floor that never drops", "The bond cannot fall below the penalties owed to open draws, and the house cannot take on more draws than its bond covers."], ["03", "One use per signature", "Each signed action carries a nonce and this contract's address, so a signature works once and only here."], ["04", "Silence costs the house", "If it misses a reveal, anyone can settle it and the penalty is paid to the user from the bond."]].map((r) => ({ n: r[0], t: r[1], d: r[2] })),
     fingerprint: fp ?? "…",
   };
-  return <HouseView v={v} />;
+  return (
+    <>
+      {owed > 0n && (
+        <div className="alert warn" style={{ maxWidth: 720, margin: "16px auto" }} role="status">
+          <span>
+            <b style={{ display: "block", marginBottom: 6 }}>This wallet is owed {qor(owed)} QOR.</b>
+            A refund could not be pushed on chain, so it is waiting here.
+            <button
+              className="btn btn-p btn-s"
+              style={{ marginTop: 10 }}
+              onClick={() => {
+                writeContractAsync({ address: CONFIG.house, abi: ABI.house, functionName: "claimOwed", args: [] })
+                  .then((hash) => publicClient.waitForTransactionReceipt({ hash }))
+                  .then(() => { setClaimMsg("Refund claimed."); setOwed(0n); })
+                  .catch((e) => { const err = classify(e); setClaimMsg(`${err.title} ${err.desc}`); });
+              }}
+            >Claim owed</button>
+            {claimMsg && <span className="small" style={{ display: "block", marginTop: 8 }}>{claimMsg}</span>}
+          </span>
+        </div>
+      )}
+      <HouseView v={v} />
+    </>
+  );
 }

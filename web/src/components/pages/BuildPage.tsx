@@ -27,7 +27,7 @@ export function BuildPage() {
   const { theme, setTheme } = useTheme();
   const wallet = useWallet();
   const params = useHouseParams().data;
-  const [renderer, setRenderer] = useState<string>();
+  const [renderer, setRenderer] = useState<string | undefined>(CONFIG.renderer !== "0x0000000000000000000000000000000000000000" ? CONFIG.renderer : undefined);
   const [active, setActive] = useState("quick");
 
   useEffect(() => {

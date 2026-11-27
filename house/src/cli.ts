@@ -26,7 +26,7 @@ Setup
   register-key                 register the ML-DSA-87 key on the native lane (with proof of possession)
   open-window [--deploy B T Q] open the scoped window (house contract only), or an unscoped
                                deploy window of B blocks, T txs and Q QOR
-  deploy                       deploy House, Renderer, Mint, Dice and Probe from the house
+  deploy [--min-bond 200]      deploy House, Renderer, Mint, Dice and Probe from the house
                                account (needs an unscoped window); writes data/deployment.json
   init [--n 10000]             draw a seed and write the hash chain to data/chain.json (0600)
   enroll [--bond 200]          post the anchor and bond, signed with ML-DSA-87
@@ -149,7 +149,8 @@ async function main() {
       };
       const me = acct.evm as Hex;
       const payout = (flag(args, "--payout") ?? me) as Hex;
-      const house = await deploy("SortesHouse", art("SortesHouse.sol", "SortesHouse"), [me, payout, 2n, 100n, 150n, 32n, parseEther("1"), parseEther("2"), parseEther("200")]);
+      const minBond = parseEther(flag(args, "--min-bond", "200")!);
+      const house = await deploy("SortesHouse", art("SortesHouse.sol", "SortesHouse"), [me, payout, 2n, 100n, 150n, 32n, parseEther("1"), parseEther("2"), minBond]);
       const renderer = await deploy("SortesRenderer", art("SortesRenderer.sol", "SortesRenderer"), []);
       const mint = await deploy("SortesMint", art("SortesMint.sol", "SortesMint"), [house.address, renderer.address, 1000n, 3n, me]);
       const dice = await deploy("SortesDice", art("SortesDice.sol", "SortesDice"), [house.address, parseEther("10"), me]);
@@ -248,5 +249,7 @@ async function main() {
 
 main().catch((e) => {
   console.error(e?.shortMessage ?? e?.message ?? e);
+  if (e?.cause) console.error(e.cause);
+  if (e?.stack) console.error(e.stack);
   process.exit(1);
 });
