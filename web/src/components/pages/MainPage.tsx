@@ -56,7 +56,7 @@ export function MainPage() {
 
   useEffect(() => {
     if (window.innerHeight < 1500) setScroll(true);
-    const t = setInterval(() => { if (!pausedRef.current) setStep((s) => (s + 1) % 5); }, 3200);
+    const t = setInterval(() => { if (!pausedRef.current && !document.hidden) setStep((s) => (s + 1) % 5); }, 3200);
     fetch("/attacks.json").then((r) => (r.ok ? r.json() : [])).then((l: AttackResult[]) => setResults(Object.fromEntries(l.map((x) => [x.name, x])))).catch(() => {});
     return () => clearInterval(t);
   }, []);
@@ -76,7 +76,7 @@ export function MainPage() {
   const sampleProofs = [312, 311, 310, 309, 308].map((n) => ({ n, h: "0x…", t: "sample", chip: "Sample" }));
 
   const cur = DESK[step];
-  const refusal = (a: (typeof ATTACKS)[number]) => { const r = results[a.key]; return { id: a.id, t: a.title, res: a.res, c: a.kind === "reverted" ? "#c4552d" : a.kind === "floor" ? "#b07a1e" : "#8b8073", live: !!r }; };
+  const refusal = (a: (typeof ATTACKS)[number]) => { const r = results[a.key]; return { id: a.id, t: a.title, res: a.res, c: a.kind === "reverted" ? "var(--acc)" : a.kind === "floor" ? "var(--warn)" : "var(--mut)", live: !!r }; };
   const v = {
     theme, isDark: theme === "dark", setTheme,
     wallet: wallet.label, mode: scroll ? "scroll" : "auto", pinH: scroll ? "640vh" : "900px", storyH: scroll ? "100vh" : "900px",
@@ -84,9 +84,9 @@ export function MainPage() {
     codeHtml: highlight(COINFLIP_SHORT),
     copyCode: () => { navigator.clipboard?.writeText(COINFLIP_SHORT).then(() => toast.push({ c: "var(--ok)", t: "Copied", d: "The example contract is on your clipboard." })); },
     inputs: [
-      { img: frameUrl(STILL.houseTicket), pos: "80% 42%", cap: "ticket into the top row", alt: "A bronze ticket sliding into a slot of the marble machine", r: "I", who: "The house", tag: "locked first", t: "A value", ti: "locked in advance", p: "The house commits to a hash chain before anyone arrives. Its reveal must hash to the next link, or it reverts.", mb: "#c4552d", mf: "#f7f2e9", rows: [{ k: "link #127", v: "0x9b2e…41c0", c: "#5e554a" }, { k: "link #128", v: "sealed", c: "#c4552d" }, { k: "forged reveal", v: "reverts", c: "#c4552d" }] },
-      { img: frameUrl(STILL.funnel), pos: "74% 32%", cap: "white ball, the funnel", alt: "A white ball dropping into the bronze funnel", r: "II", who: "You", tag: "committed blind", t: "A secret,", ti: "sent as a hash", p: "Your browser keeps the secret and sends only its hash. Swapping it later reverts; staying silent gets you the floor.", mb: "#f7f2e9", mf: "#16110d", rows: [{ k: "commitment", v: "0x6c40…b215", c: "#5e554a" }, { k: "value", v: "1 QOR", c: "#5e554a" }, { k: "swapped secret", v: "reverts", c: "#c4552d" }] },
-      { img: frameUrl(STILL.blackBall), pos: "62% 33%", cap: "black ball, sealed", alt: "A black ball dropping into the bronze funnel", r: "III", who: "The block", tag: "nobody had seen", t: "A block", ti: "nobody could know", p: "The lock block lands two blocks after your commit. Its hash did not exist when the house or you chose.", mb: "#16110d", mf: "#f7f2e9", rows: [{ k: "commit", v: "#4,182,905", c: "#5e554a" }, { k: "lock", v: "#4,182,907", c: "#5e554a" }, { k: "hash", v: "0xd03a…5e19", c: "#16110d" }] },
+      { img: frameUrl(STILL.houseTicket), pos: "80% 42%", cap: "ticket into the top row", alt: "A bronze ticket sliding into a slot of the marble machine", r: "I", who: "The house", tag: "locked first", t: "A value", ti: "locked in advance", p: "The house commits to a hash chain before anyone arrives. Its reveal must hash to the next link, or it reverts.", mb: "var(--acc)", mf: "var(--btnInk)", rows: [{ k: "link #127", v: "0x9b2e…41c0", c: "var(--mut)" }, { k: "link #128", v: "sealed", c: "var(--acc)" }, { k: "forged reveal", v: "reverts", c: "var(--acc)" }] },
+      { img: frameUrl(STILL.funnel), pos: "74% 32%", cap: "white ball, the funnel", alt: "A white ball dropping into the bronze funnel", r: "II", who: "You", tag: "committed blind", t: "A secret,", ti: "sent as a hash", p: "Your browser keeps the secret and sends only its hash. Swapping it later reverts; staying silent gets you the floor.", mb: "#f7f2e9", mf: "#16110d", rows: [{ k: "commitment", v: "0x6c40…b215", c: "var(--mut)" }, { k: "value", v: "1 QOR", c: "var(--mut)" }, { k: "swapped secret", v: "reverts", c: "var(--acc)" }] },
+      { img: frameUrl(STILL.blackBall), pos: "62% 33%", cap: "black ball, sealed", alt: "A black ball dropping into the bronze funnel", r: "III", who: "The block", tag: "nobody had seen", t: "A block", ti: "nobody could know", p: "The lock block lands two blocks after your commit. Its hash did not exist when the house or you chose.", mb: "#16110d", mf: "#f7f2e9", rows: [{ k: "commit", v: "#4,182,905", c: "var(--mut)" }, { k: "lock", v: "#4,182,907", c: "var(--mut)" }, { k: "hash", v: "0xd03a…5e19", c: "var(--ink)" }] },
     ],
     deskPos: cur.pos, deskImg: frameUrl(cur.img), deskCap: cur.cap, deskAlt: "Rendered still of the allotment machine at the " + cur.t + " stop",
     desk: cur.d.map((x) => ({ k: x[0], v: x[1], n: x[2], c: x[0] === "RESULT" || x[0] === "CHECKS" ? "#f0a37a" : "#f7f2e9" })),

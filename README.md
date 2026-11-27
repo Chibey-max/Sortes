@@ -1,8 +1,12 @@
 # Sortes
 
+![Sortes: fair randomness for QoreChain](docs/cover.png)
+
 **QoreChain had no fair randomness. Sortes brings proven commit-reveal to QoreChain, built only from quantum-safe parts, with the house's funds locked behind ML-DSA-87.**
 
 Sortes is a randomness house that any QoreChain app plugs into, shipped with **Sortes Lots**, an NFT collection whose traits nobody can rig, not even its creator. Built for *Build Before Q-Day* (Post-Quantum dApp category) on `qorechain-diana`, EVM chain ID 9800.
+
+**Audit:** two-stage QCAI audit (EVM/Solidity setting). Reports in [`docs/audit/`](docs/audit/); every Stage 1 finding and the post-quantum design are answered in [`docs/AUDIT.md`](docs/AUDIT.md).
 
 ## Judge it in 5 minutes
 
@@ -122,7 +126,7 @@ Locally the precompiles are mocks etched at `0x…0a01` / `0x…0a02` (`contract
 contracts/   Foundry: SortesHouse, SortesMint, SortesRenderer (on-chain SVG), SortesDice, tests, Deploy script
 house/       TypeScript daemon + admin CLI: reveal loop, scoped EVM window keeper, /health, /reveal relay, attack runner
 web/         Next.js app: mint (QoreX or MetaMask), lot, gallery, verifier, attacks, build guide, house status
-docs/        PRD, plan, threat model, integration guide, deploy guide, audit
+docs/        PRD, plan, threat model, integration guide, deploy guide, AUDIT.md + audit/ (QCAI reports), cover.png
 scripts/     smoke.mjs: whole stack on a local chain, driven in a browser
 tools/       QoreX cross-VM test page (day-0 wallet check)
 ```
@@ -135,11 +139,11 @@ tools/       QoreX cross-VM test page (day-0 wallet check)
 | QoreChain tech usage (25%) | `pqcVerify` + `pqcKeyStatus` in SortesHouse bytecode; scoped EVM window (house + mint only) renewed by the daemon; QoreX `MsgCrossVMCall` mint path; `@qorechain/sdk`, `pqc`, `evm`, `qorex-rainbowkit`, `qorex-types` in package.json |
 | Post-quantum correctness (20%) | keccak256 + ML-DSA-87 only; ECDSA-only attacks fail on chain; domain-separated, nonce-bound admin digests; [`THREAT_MODEL.md`](docs/THREAT_MODEL.md) |
 | Originality (15%) | First fair randomness source among the fest's projects; explains why ML-DSA can't be a VRF |
-| Clarity, UX, docs (15%) | This page; one-signature mint; labelled progress; [`INTEGRATION.md`](docs/INTEGRATION.md) |
+| Clarity, UX, docs (15%) | This page; one-signature mint; labelled progress; light and dark themes, phone to 4K, WCAG AA text contrast checked on every page; [`INTEGRATION.md`](docs/INTEGRATION.md), [`AUDIT.md`](docs/AUDIT.md) |
 
 ## Credits
 
-QoreChain kits: `@qorechain/sdk`, `@qorechain/pqc`, `@qorechain/evm`, `@qorechain/qorex-rainbowkit`, `@qorechain/qorex-types` (Apache-2.0). OpenZeppelin Contracts 5.1 (MIT). Foundry and forge-std (MIT/Apache-2.0). viem, wagmi, RainbowKit, TanStack Query, Next.js, React (MIT). cosmjs (Apache-2.0). The commit-reveal family is the same as [Pyth Entropy](https://docs.pyth.network/entropy/protocol-design); Sortes adds the ML-DSA-protected house and timeouts.
+QoreChain kits: `@qorechain/sdk`, `@qorechain/pqc`, `@qorechain/evm`, `@qorechain/qorex-rainbowkit`, `@qorechain/qorex-types` (Apache-2.0). OpenZeppelin Contracts 5.1 (MIT). Foundry and forge-std (MIT/Apache-2.0). viem, wagmi, RainbowKit (peer of the QoreX kit), TanStack Query, Next.js, React, Lenis (MIT). cosmjs (Apache-2.0). The commit-reveal family is the same as [Pyth Entropy](https://docs.pyth.network/entropy/protocol-design); Sortes adds the ML-DSA-protected house and timeouts.
 
 ## Licence
 

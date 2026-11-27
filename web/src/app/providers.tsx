@@ -9,6 +9,7 @@ import { CONFIG } from "@/lib/config";
 import { ThemeProvider } from "@/lib/theme";
 import { ToastProvider } from "@/lib/toast";
 import { WalletProvider } from "@/lib/wallet";
+import { SmoothScroll } from "@/components/SmoothScroll";
 
 /** MetaMask (EVM lane) goes through wagmi; QoreX (native lane) is handled in lib/wallet + lib/qorex. */
 export const wagmiConfig = createConfig({
@@ -25,7 +26,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <QueryClientProvider client={qc}>
         <ThemeProvider>
           <ToastProvider>
-            <WalletProvider>{children}</WalletProvider>
+            <WalletProvider><SmoothScroll />{children}</WalletProvider>
           </ToastProvider>
         </ThemeProvider>
       </QueryClientProvider>

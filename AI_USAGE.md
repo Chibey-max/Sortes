@@ -14,6 +14,7 @@ Sortes was built with AI assistance, and the product itself contains no AI.
 - The off-chain mirrors (daemon `protocol.ts`, web `protocol.ts`) are tested against the Solidity: digests and commitments against the deployed contract on anvil, traits against vectors generated from the contracts.
 - The QoreX `MsgCrossVMCall` encoder is checked byte for byte against `@qorechain/sdk`'s codec.
 - The whole stack runs end to end locally in a real browser (`scripts/smoke.mjs`): every page, dark mode, phone width and a full mint through a mocked QoreX.
+- The final polish pass (wallet connect/disconnect menu, Lenis smooth scroll, the on-demand animation loop, the contrast fixes) was checked by a script that measures WCAG text contrast and horizontal overflow on every page at 8 widths from 320 px to 2560 px, in both themes, plus CPU and heap measurements of the landing page.
 - The web app's pages were generated from the author's Claude Design canvas by a converter script, then wired to live chain data by hand; the on-chain plate art is generated from the same design's art sheet.
 - Design decisions taken by the author after reviewing the AI's findings: keep the lock hash as an optional third input and state a two-party trust model; offer both QoreX (sponsored) and MetaMask (paid) mints; no co-author lines in commits.
 

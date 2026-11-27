@@ -28,6 +28,7 @@ export function LotActions({ requestId, tokenId }: { requestId?: bigint; tokenId
         readLot(tokenId),
       ]);
       if (stop) return;
+      if (lot.finalized) { stop = true; clearInterval(t); }
       const houseDeadline = req.lockBlock + BigInt(params.W_HOUSE);
       const userDeadline = req.houseRevealBlock > 0n ? req.houseRevealBlock + BigInt(params.W_USER) : 0n;
       setView({
@@ -36,8 +37,8 @@ export function LotActions({ requestId, tokenId }: { requestId?: bigint; tokenId
         canFinalize: !lot.finalized && (req.status === Status.Fulfilled || req.status === Status.HouseTimedOut || req.status === Status.UserTimedOut),
       });
     };
+    const t: ReturnType<typeof setInterval> = setInterval(() => { if (!document.hidden && !stop) void load().catch(() => {}); }, 4000);
     void load().catch(() => {});
-    const t = setInterval(() => void load().catch(() => {}), 4000);
     return () => { stop = true; clearInterval(t); };
   }, [requestId, tokenId]);
 

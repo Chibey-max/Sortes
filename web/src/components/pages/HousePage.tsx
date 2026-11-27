@@ -67,7 +67,7 @@ export function HousePage() {
       if (wallet.address) readOwed(wallet.address).then((n) => live && setOwed(n)).catch(() => {});
     };
     void load();
-    const t = setInterval(load, 20000);
+    const t = setInterval(() => { if (!document.hidden) void load(); }, 20000);
     return () => { live = false; clearInterval(t); };
   }, [wallet.address]);
 
@@ -96,8 +96,8 @@ export function HousePage() {
   const used = P ? Number(P.lastPos) : 0, len = P ? Number(P.chainLength) : 0;
   const rowOf = (e: Ev) => {
     const b = `#${num(e.block)}`;
-    if (e.kind === "revealed") return { a: "House reveal", v: "0", b, s: "on time", c: "var(--ok)" };
-    if (e.kind === "timeout") return { a: e.status === 4 ? "House missed a reveal" : "User missed a reveal", v: e.status === 4 ? `${qor(penalty, 0)} QOR penalty` : "0", b, s: e.status === 4 ? "paid to user" : "floor applied", c: e.status === 4 ? "var(--warn)" : "var(--info)" };
+    if (e.kind === "revealed") return { a: "House reveal", v: "—", b, s: "on time", c: "var(--ok)" };
+    if (e.kind === "timeout") return { a: e.status === 4 ? "House missed a reveal" : "User missed a reveal", v: e.status === 4 ? `${qor(penalty, 0)} QOR penalty` : "—", b, s: e.status === 4 ? "paid to user" : "floor applied", c: e.status === 4 ? "var(--warn)" : "var(--info)" };
     if (e.kind === "withdraw") return { a: "Withdrawal", v: `${qor(e.amount)} QOR`, b, s: "signed ML-DSA-87", c: "var(--info)" };
     if (e.kind === "bond") return { a: "Bond top-up", v: `+${qor(e.amount)} QOR`, b, s: "added", c: "var(--info)" };
     if (e.kind === "enroll") return { a: "Enrolled with a bond", v: `${qor(e.amount)} QOR`, b, s: "signed ML-DSA-87", c: "var(--ok)" };
@@ -114,7 +114,7 @@ export function HousePage() {
       ["Paid to users", qor(BigInt(missed) * penalty, 0), "QOR in penalties, all time"],
       ["Reveals on time", reveals + missed ? `${((reveals / (reveals + missed)) * 100).toFixed(1)}%` : "n/a", "all time"],
     ].map((k) => ({ k: k[0], v: k[1], n: k[2] })),
-    bars: bars.map((b) => ({ h: b.m ? 100 : b.n ? Math.max(8, Math.round((b.n / maxBar) * 100)) : 4, c: b.m ? "m" : "" })),
+    bars: bars.map((b) => ({ h: b.n ? Math.max(8, Math.round((b.n / maxBar) * 100)) : b.m ? 30 : 4, c: b.m ? "m" : "" })),
     barsLabel: `Reveals per hour over the last 24 hours: ${reveals} in total, ${missed} missed windows`,
     axis: ["24 h ago", "18 h", "12 h", "6 h"],
     linksUsed: `${num(used)} of ${num(len)}`, usedPct: len ? Math.max(0.1, (used / len) * 100).toFixed(2) : "0", root: P ? short(P.anchor as string, 8, 6) : "…", nextLink: `#${num(used + 1)}`, linksLeft: `${num(Math.max(0, len - used))} (a new chain is signed in before it runs out)`,

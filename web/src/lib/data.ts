@@ -16,7 +16,7 @@ function useLoad<T>(fn: () => Promise<T>, everyMs: number, enabled = true, deps:
     let live = true;
     const run = async () => { try { const d = await fn(); if (live) { setData(d); setError(false); } } catch { if (live) setError(true); } };
     void run();
-    const t = everyMs > 0 ? setInterval(run, everyMs) : undefined;
+    const t = everyMs > 0 ? setInterval(() => { if (!document.hidden) void run(); }, everyMs) : undefined;
     return () => { live = false; if (t) clearInterval(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [everyMs, enabled, ...deps]);

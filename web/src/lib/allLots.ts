@@ -24,10 +24,18 @@ export async function logsChunked(event: any, address: Address, from: bigint, to
   }
 }
 
+const cache: { to: bigint; minted: any[]; revealed: any[] } = { to: -1n, minted: [], revealed: [] };
+
 /** Every lot ever minted, from two event queries: Minted (who) and Revealed (traits). */
 export async function loadAllLots(): Promise<GalleryLot[]> {
   const head = await publicClient.getBlockNumber();
-  const [minted, revealed] = await Promise.all([logsChunked(MINTED, CONFIG.mint, CONFIG.fromBlock, head), logsChunked(REVEALED, CONFIG.mint, CONFIG.fromBlock, head)]);
+  // Incremental: only blocks after the last scan are fetched, so polling stays cheap as the chain grows.
+  const from = cache.to < 0n ? CONFIG.fromBlock : cache.to + 1n;
+  if (from <= head) {
+    const [m, r] = await Promise.all([logsChunked(MINTED, CONFIG.mint, from, head), logsChunked(REVEALED, CONFIG.mint, from, head)]);
+    cache.minted.push(...m); cache.revealed.push(...r); cache.to = head;
+  }
+  const { minted, revealed } = cache;
   const rev = new Map<number, { traits: number[]; floor: boolean }>();
   for (const l of revealed) rev.set(Number(l.args.tokenId), { traits: (l.args.traits as readonly number[]).map(Number), floor: !!l.args.floor });
   return minted
@@ -43,7 +51,7 @@ export function useAllLots(everyMs = 20000) {
     let live = true;
     const run = async () => { try { const l = await loadAllLots(); if (live) { setLots(l); setError(false); } } catch { if (live) setError(true); } };
     void run();
-    const t = setInterval(run, everyMs);
+    const t = setInterval(() => { if (!document.hidden) void run(); }, everyMs);
     return () => { live = false; clearInterval(t); };
   }, [everyMs]);
   return { lots, error };

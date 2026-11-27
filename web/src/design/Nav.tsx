@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { NavView } from "./views/NavView";
+import { WalletMenu } from "@/components/WalletMenu";
 
 export interface NavProps {
   active?: string;
@@ -31,6 +32,8 @@ export function Nav(p: NavProps) {
     connected: !!w, notConnected: !w, wallet: w, cta: p.cta || "Connect QoreX",
     open, closed: !open, openStr: open ? "true" : "false", menuLabel: open ? "Close menu" : "Open menu",
     toggleMenu: () => setOpen(!open),
+    walletSlot: <WalletMenu />,
+    sheetWallet: <div style={{ borderTop: "1px solid var(--line)", marginTop: 6, paddingTop: 6 }}><WalletMenu inline onDone={() => setOpen(false)} /></div>,
   };
   return <NavView v={v} />;
 }

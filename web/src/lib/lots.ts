@@ -27,7 +27,7 @@ export function useRecentLots(count: number, everyMs = 20000) {
       } catch { if (live) { setRows((r) => r ?? []); } }
     };
     void load();
-    const t = setInterval(load, everyMs);
+    const t = setInterval(() => { if (!document.hidden) void load(); }, everyMs);
     return () => { live = false; clearInterval(t); };
   }, [count, everyMs]);
   return { rows, total };

@@ -14,7 +14,7 @@ export function useHead(everyMs = 6000) {
       catch { if (live) setError(true); }
     };
     void tick();
-    const t = setInterval(tick, everyMs);
+    const t = setInterval(() => { if (!document.hidden) void tick(); }, everyMs);
     return () => { live = false; clearInterval(t); };
   }, [everyMs]);
   return { head, error };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { StoryView } from "./views/StoryView";
 import { FRAME_COUNT, frameUrl } from "./frames";
 
@@ -15,39 +15,60 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 
  * (lerp 0.09 per frame) and scrubs 144 rendered frames of the kleroterion. The cards on top walk
  * through one draw (an illustrative sample, not live data). Reduced motion stops the smoothing.
  */
-export function Story({ mode = "auto", theme = "light", p: pProp = 0.03, h = "900px" }: StoryProps) {
+export const Story = memo(function Story({ mode = "auto", theme = "light", p: pProp = 0.03, h = "900px" }: StoryProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const setRoot = useCallback((el: HTMLDivElement | null) => { rootRef.current = el; }, []);
   const [p, setP] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
+  const kickRef = useRef<() => void>(() => {});
   const cur = useRef(0), tgt = useRef(0), acc = useRef(0), last = useRef<number | null>(null), rm = useRef(false), pausedRef = useRef(false), shown = useRef(-1);
   pausedRef.current = paused;
 
   useEffect(() => {
     rm.current = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // Frames are small WebPs (~30 KB). Load every 6th first so scrubbing has coverage at once, the rest
+    // when the browser is idle. Only the frame on screen is decoded; the others stay compressed.
     const imgs: HTMLImageElement[] = [];
     const load = (i: number) => { const im = new Image(); im.decoding = "async"; im.src = frameUrl(i + 1); imgs[i] = im; };
     for (let i = 0; i < FRAME_COUNT; i += 6) load(i);
-    const lt = setTimeout(() => { for (let i = 0; i < FRAME_COUNT; i++) if (!imgs[i]) load(i); }, 400);
-    if (mode === "fixed") return () => clearTimeout(lt);
-    let raf = 0;
+    const idle = (window as any).requestIdleCallback ?? ((f: () => void) => setTimeout(f, 400));
+    const cancelIdle = (window as any).cancelIdleCallback ?? clearTimeout;
+    const lt = idle(() => { for (let i = 0; i < FRAME_COUNT; i++) if (!imgs[i]) load(i); });
+    if (mode === "fixed") return () => cancelIdle(lt);
+
+    // The loop runs only while the story is on screen, and in scroll mode only while it is catching up
+    // with the scroll position, so an idle page costs nothing.
+    let raf = 0, visible = true;
+    const measure = () => {
+      const root = rootRef.current;
+      const host = root?.closest("[data-scrub]") as HTMLElement | null;
+      if (host && root) { const r = host.getBoundingClientRect(); const span = r.height - root.offsetHeight; tgt.current = span > 0 ? cl(-r.top / span) : 0; }
+    };
+    const smooth = () => (rm.current ? 1 : (window as any).__lenis ? 0.22 : 0.12);
     const tick = (now: number) => {
+      raf = 0;
       if (mode === "scroll") {
-        const root = rootRef.current;
-        const host = root?.closest("[data-scrub]") as HTMLElement | null;
-        if (host && root) { const r = host.getBoundingClientRect(); const span = r.height - root.offsetHeight; tgt.current = span > 0 ? cl(-r.top / span) : 0; }
-        cur.current += (tgt.current - cur.current) * (rm.current ? 1 : 0.09);
+        measure();
+        const d = tgt.current - cur.current;
+        cur.current = Math.abs(d) < 0.0003 ? tgt.current : cur.current + d * smooth();
       } else {
-        const dt = now - (last.current ?? now); last.current = now;
+        const dt = Math.min(64, now - (last.current ?? now)); last.current = now;
         if (!pausedRef.current && !rm.current) acc.current += dt;
         const cyc = 26000; const t = (acc.current % cyc) / cyc;
         cur.current = rm.current ? 0.03 : Math.min(1, t * 1.1);
       }
-      if (Math.abs(shown.current - cur.current) > 0.0006) { shown.current = cur.current; setP(cur.current); }
-      raf = requestAnimationFrame(tick);
+      if (Math.abs(shown.current - cur.current) > 0.0008 || (cur.current === tgt.current && shown.current !== cur.current)) { shown.current = cur.current; setP(cur.current); }
+      const moving = mode === "scroll" ? cur.current !== tgt.current : !pausedRef.current && !rm.current;
+      if (visible && moving) raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); clearTimeout(lt); };
+    const kick = () => { if (!raf && visible) { last.current = null; raf = requestAnimationFrame(tick); } };
+    const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) kick(); }, { rootMargin: "200px" });
+    if (rootRef.current) io.observe(rootRef.current);
+    window.addEventListener("scroll", kick, { passive: true });
+    window.addEventListener("resize", kick);
+    kickRef.current = kick;
+    kick();
+    return () => { cancelAnimationFrame(raf); cancelIdle(lt); io.disconnect(); window.removeEventListener("scroll", kick); window.removeEventListener("resize", kick); };
   }, [mode]);
 
   const jump = (to: number | "past") => {
@@ -56,9 +77,11 @@ export function Story({ mode = "auto", theme = "light", p: pProp = 0.03, h = "90
       if (!host || !root) return;
       const r = host.getBoundingClientRect(); const span = r.height - root.offsetHeight;
       const y = to === "past" ? window.scrollY + r.bottom : window.scrollY + r.top + span * to;
-      window.scrollTo({ top: y, behavior: rm.current ? "auto" : "smooth" });
+      const lenis = (window as any).__lenis;
+      if (lenis && !rm.current) lenis.scrollTo(y, { duration: 1.4 });
+      else window.scrollTo({ top: y, behavior: rm.current ? "auto" : "smooth" });
     } else if (mode === "auto" && to !== "past") {
-      acc.current = (to / 1.1) * 26000; cur.current = to; setP(to);
+      acc.current = (to / 1.1) * 26000; cur.current = to; setP(to); kickRef.current();
     }
   };
 
@@ -69,7 +92,7 @@ export function Story({ mode = "auto", theme = "light", p: pProp = 0.03, h = "90
   const dark = theme === "dark";
   const C = dark
     ? { g: "#5e8a4a", a: "#e0703f", lab: "#a89a87", ink: "#f7f2e9", on: "#2a211a", off: "#140f0b", ond: "rgba(240,163,122,.4)", offd: "rgba(240,200,160,.1)" }
-    : { g: "#4f7a3d", a: "#c4552d", lab: "#6f6558", ink: "#16110d", on: "#f1e8da", off: "#efe8dc", ond: "rgba(196,85,45,.35)", offd: "rgba(22,17,13,.08)" };
+    : { g: "#4f7a3d", a: "#a3401d", lab: "#6f6558", ink: "#16110d", on: "#f1e8da", off: "#efe8dc", ond: "rgba(196,85,45,.35)", offd: "rgba(22,17,13,.08)" };
   const out: Record<string, any> = { setRoot, h, frame: frameUrl(want), theme: dark ? "dark" : "light" };
   out.alt = "A marble allotment machine with rows of bronze tickets and a bronze tube with a funnel.";
   out.veinOp = dark ? "0" : "1";
@@ -127,8 +150,8 @@ export function Story({ mode = "auto", theme = "light", p: pProp = 0.03, h = "90
   out.marks = STEPS.map((s, i) => ({ n: s[0], t: s[1], go: () => jump(s[2]), cur: i === active ? "step" : "false", bg: i === active ? C.ink : "transparent", fg: i === active ? (dark ? "#16110d" : "#f7f2e9") : i < active ? C.ink : C.lab }));
   out.auto = mode === "auto";
   out.playing = !paused; out.paused = paused; out.playLabel = paused ? "Play the story" : "Pause the story";
-  out.togglePlay = () => setPaused((x) => !x);
+  out.togglePlay = () => { pausedRef.current = !paused; setPaused((x) => !x); kickRef.current(); };
   out.canSkip = mode === "scroll"; out.skip = () => jump("past"); out.skOp = (1 - k(0.8, 0.86)).toFixed(2);
   out.live = active < 0 ? "Introduction" : "Step " + STEPS[active][0] + ", " + STEPS[active][1];
   return <StoryView v={out} />;
-}
+});

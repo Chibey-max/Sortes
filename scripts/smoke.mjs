@@ -115,7 +115,7 @@ try {
   if (existsSync(attacksFile)) copyFileSync(attacksFile, join(root, "web/public/attacks.json"));
 
   // ---- the web app against this chain
-  const webEnv = { ...process.env, NEXT_TELEMETRY_DISABLED: "1", NEXT_PUBLIC_EVM_RPC: RPC, NEXT_PUBLIC_HOUSE: houseAddr, NEXT_PUBLIC_MINT: mintAddr, NEXT_PUBLIC_DICE: dice, NEXT_PUBLIC_DAEMON_URL: `http://127.0.0.1:${HEALTH}`, NEXT_PUBLIC_FROM_BLOCK: houseRc.blockNumber.toString() };
+  const webEnv = { ...process.env, NEXT_TELEMETRY_DISABLED: "1", NEXT_PUBLIC_EVM_RPC: RPC, NEXT_PUBLIC_HOUSE: houseAddr, NEXT_PUBLIC_MINT: mintAddr, NEXT_PUBLIC_DICE: dice, NEXT_PUBLIC_RENDERER: renderer, NEXT_PUBLIC_DAEMON_URL: `http://127.0.0.1:${HEALTH}`, NEXT_PUBLIC_FROM_BLOCK: houseRc.blockNumber.toString() };
   log("building the web app…");
   execFileSync("npx", ["next", "build"], { cwd: join(root, "web"), env: webEnv, stdio: "ignore" });
   procs.push(spawn("npx", ["next", "start", "-p", String(WEB)], { cwd: join(root, "web"), env: webEnv, stdio: "ignore", detached: true }));
@@ -249,6 +249,24 @@ try {
   await shot(p, "mint-drawn.png", false);
   const total = await pub.readContract({ address: mintAddr, abi: M.abi, functionName: "totalMinted", args: [] });
   check(total === 15n, `mint: the lot is on chain (supply ${total})`);
+
+  // ---- wallet menu: account panel, disconnect, reconnect from the header chooser
+  await p.locator("header .wm-chip").click();
+  await p.getByRole("dialog", { name: "Your wallet" }).waitFor({ timeout: 10_000 });
+  check(await p.getByText("qor1 address").count() > 0 && await p.getByText(/QOR$/).count() > 0, "wallet: account panel shows qor1 address and balance");
+  await shot(p, "wallet-account.png", false);
+  await p.getByRole("button", { name: "Disconnect" }).click();
+  await p.locator("header").getByRole("button", { name: "Connect wallet" }).waitFor({ timeout: 10_000 });
+  check(true, "wallet: disconnect returns the header to Connect wallet");
+  await p.reload(); await p.waitForTimeout(1500);
+  check(await p.locator("header .wm-chip").count() === 0, "wallet: stays disconnected after a reload");
+  await p.locator("header").getByRole("button", { name: "Connect wallet" }).click();
+  await shot(p, "wallet-chooser.png", false);
+  await p.getByRole("button", { name: /^QoreX/ }).click();
+  await p.locator("header .wm-chip").waitFor({ timeout: 10_000 });
+  check(true, "wallet: header chooser connects QoreX");
+  await p.reload(); await p.locator("header .wm-chip").waitFor({ timeout: 10_000 });
+  check(true, "wallet: QoreX connection restored after a reload");
 
   // ---- phone width: every page at 390, no horizontal scroll
   const mobile = await newPage({ viewport: { width: 390, height: 844 }, colorScheme: "light" });

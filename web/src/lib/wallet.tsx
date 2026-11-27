@@ -48,7 +48,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         qorexConnect().then((a) => live && setQorex(a)).catch(() => {});
       }
     } catch {}
-    return () => { live = false; };
+    const refresh = () => { try { if (localStorage.getItem(KEY) === "qorex") qorexConnect().then((a) => live && setQorex(a)).catch(() => {}); } catch {} };
+    window.addEventListener("qorex_keystorechange", refresh);
+    window.addEventListener("keplr_keystorechange", refresh);
+    return () => { live = false; window.removeEventListener("qorex_keystorechange", refresh); window.removeEventListener("keplr_keystorechange", refresh); };
   }, []);
 
   const connectQorex = useCallback(async () => {
@@ -56,6 +59,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       if (!getQorexNative()) { setError("no-qorex"); return undefined; }
       const a = await qorexConnect();
+      wagmiDisconnect();
       setQorex(a);
       try { localStorage.setItem(KEY, "qorex"); } catch {}
       return a;
@@ -64,14 +68,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setError(/reject|denied|cancel/i.test(m) ? "rejected" : /network|chain|unsupported/i.test(m) ? "network" : "no-qorex");
       return undefined;
     } finally { setBusy(false); }
-  }, []);
+  }, [wagmiDisconnect]);
 
   const connectEvm = useCallback(async () => {
     setBusy(true); setError(null);
     try {
       const c = connectors.find((x) => x.id === "metaMaskSDK" || /metamask/i.test(x.name)) ?? connectors[0];
       if (!c) { setError("no-metamask"); return; }
-      await connectAsync({ connector: c });
+      if (!(window as any).ethereum) { setError("no-metamask"); return; }
+      await connectAsync({ connector: c, chainId: CONFIG.evmChainId }).catch(async (e) => {
+        // Already connected to wagmi from an earlier visit: reuse it.
+        if (/already connected/i.test(String(e?.message))) return;
+        throw e;
+      });
+      setQorex(undefined);
       try { localStorage.setItem(KEY, "evm"); } catch {}
     } catch (e: any) {
       setError(/reject|denied|cancel/i.test(String(e?.message ?? e)) ? "rejected" : "no-metamask");
