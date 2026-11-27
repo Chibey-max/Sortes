@@ -7,10 +7,13 @@ import {SortesRenderer} from "../src/SortesRenderer.sol";
 import {ISortesHouse} from "../src/interfaces/ISortesHouse.sol";
 import {Traits} from "../src/lib/Traits.sol";
 
-contract TraitsHarness {
-    function derive(bytes32 r) external pure returns (uint8[5] memory, uint8[5] memory) {
-        Traits.Set memory s = Traits.derive(r);
-        return (s.tier, s.variant);
+library TraitsHarness {
+    function weight(uint256 trait, uint256 v) internal pure returns (uint256) {
+        return Traits.weightBps(trait, v);
+    }
+
+    function floorSet() internal pure returns (uint8[5] memory) {
+        return Traits.floor();
     }
 }
 
@@ -127,13 +130,12 @@ contract SortesMintTest is Base {
         _settle(t, secretFor(1));
         m.finalize(t);
         (, bytes32 result) = h.resultOf(m.lotOf(t).requestId);
-        (uint8[5] memory tier, uint8[5] memory variant) = m.traitsFor(result);
+        uint8[5] memory expect = m.traitsFor(result);
         SortesMint.Lot memory lot = m.lotOf(t);
         assertTrue(lot.finalized);
         assertFalse(lot.isFloor);
         for (uint256 i; i < 5; ++i) {
-            assertEq(lot.tier[i], tier[i]);
-            assertEq(lot.variant[i], variant[i]);
+            assertEq(lot.traits[i], expect[i]);
         }
     }
 
@@ -146,9 +148,9 @@ contract SortesMintTest is Base {
         m.finalize(t);
         SortesMint.Lot memory lot = m.lotOf(t);
         assertTrue(lot.isFloor);
+        uint8[5] memory floorSet = [1, 0, 0, 0, 0]; // silver, owl, bead and reel, wheel, common
         for (uint256 i; i < 5; ++i) {
-            assertEq(lot.tier[i], 0);
-            assertEq(lot.variant[i], 0);
+            assertEq(lot.traits[i], floorSet[i]);
         }
         assertEq(user.balance, before + FEE + PENALTY);
     }
@@ -180,13 +182,12 @@ contract SortesMintTest is Base {
         m.finalize(t);
     }
 
-    function test_traits_deterministic() public {
+    function test_traits_deterministic() public view {
         bytes32 r = keccak256("some result");
-        (uint8[5] memory a, uint8[5] memory av) = m.traitsFor(r);
-        (uint8[5] memory b, uint8[5] memory bv) = m.traitsFor(r);
+        uint8[5] memory a = m.traitsFor(r);
+        uint8[5] memory b = m.traitsFor(r);
         for (uint256 i; i < 5; ++i) {
             assertEq(a[i], b[i]);
-            assertEq(av[i], bv[i]);
         }
     }
 
@@ -204,8 +205,9 @@ contract SortesMintTest is Base {
         assertEq(vm.parseJsonString(json, ".name"), "Sortes Lot #1");
         string memory image = vm.parseJsonString(json, ".image");
         assertTrue(_startsWith(image, "data:image/svg+xml;base64,"));
-        string memory outcome = vm.parseJsonString(json, ".attributes[10].value");
+        string memory outcome = vm.parseJsonString(json, ".attributes[5].value");
         assertEq(outcome, "Fair roll");
+        assertEq(vm.parseJsonString(json, ".attributes[0].trait_type"), "Metal");
     }
 
     function test_tokenURI_revertsForUnknownToken() public {
@@ -215,29 +217,86 @@ contract SortesMintTest is Base {
 
     // ---------------------------------------------------------------- fuzz
 
-    /// Trait derivation always lands inside the tier ranges and variant counts.
-    function testFuzz_traitsWithinRanges(bytes32 result) public {
-        TraitsHarness th = new TraitsHarness();
-        (uint8[5] memory tier, uint8[5] memory variant) = th.derive(result);
+    /// Trait derivation always lands inside each trait's variant range, and every variant has a
+    /// name and renders.
+    function testFuzz_traitsWithinRanges(bytes32 result) public view {
+        uint8[5] memory t = m.traitsFor(result);
         for (uint256 i; i < 5; ++i) {
-            assertLe(tier[i], 3);
-            uint256 count = tier[i] == 0 ? 4 : tier[i] == 1 ? 3 : 2;
-            assertLt(variant[i], count);
-            // Every (tier, variant) has art and a name.
-            assertGt(bytes(renderer.variantName(i, tier[i], variant[i])).length, 0);
+            assertLt(t[i], _count(i));
+            assertGt(bytes(renderer.variantName(i, t[i])).length, 0);
+        }
+        assertGt(bytes(renderer.svg(t, false, 271)).length, 1000);
+    }
+
+    function _count(uint256 trait) internal pure returns (uint256) {
+        return trait < 2 ? 6 : trait < 4 ? 5 : 4;
+    }
+
+    /// Weights per trait sum to exactly 10,000 basis points and match the published odds.
+    function test_weightsSumAndPublishedOdds() public pure {
+        for (uint256 trait; trait < 5; ++trait) {
+            uint256 sum;
+            for (uint256 v; v < _count(trait); ++v) {
+                sum += TraitsHarness.weight(trait, v);
+            }
+            assertEq(sum, 10000);
+        }
+        assertEq(TraitsHarness.weight(0, 5), 800); // gold 8%
+        assertEq(TraitsHarness.weight(1, 5), 500); // kleros 5%
+        assertEq(TraitsHarness.weight(2, 4), 1200); // meander 12%
+        assertEq(TraitsHarness.weight(3, 4), 900); // star 9%
+        assertEq(TraitsHarness.weight(4, 3), 400); // legendary 4%
+    }
+
+    /// Over many results the observed odds sit near the published ones (a sanity check of the
+    /// cumulative roll, not a proof of uniformity).
+    function test_observedOddsNearPublished() public view {
+        uint256 n = 4000;
+        uint256 legendary;
+        uint256 gold;
+        for (uint256 i; i < n; ++i) {
+            uint8[5] memory t = m.traitsFor(keccak256(abi.encode("odds", i)));
+            if (t[4] == 3) legendary++;
+            if (t[0] == 5) gold++;
+        }
+        assertApproxEqAbs(legendary, (n * 400) / 10000, 40); // 4% of 4,000 = 160
+        assertApproxEqAbs(gold, (n * 800) / 10000, 55); // 8% = 320
+    }
+
+    function test_floorTraitsAreTheDocumentedOnes() public pure {
+        uint8[5] memory f = TraitsHarness.floorSet();
+        assertEq(f[0], 1);
+        for (uint256 i = 1; i < 5; ++i) {
+            assertEq(f[i], 0);
         }
     }
 
-    function test_traitTierBoundaries() public pure {
-        assertEq(Traits.tierOf(0), 3);
-        assertEq(Traits.tierOf(199), 3);
-        assertEq(Traits.tierOf(200), 2);
-        assertEq(Traits.tierOf(1199), 2);
-        assertEq(Traits.tierOf(1200), 1);
-        assertEq(Traits.tierOf(3999), 1);
-        assertEq(Traits.tierOf(4000), 0);
-        assertEq(Traits.tierOf(9999), 0);
+    // ---------------------------------------------------------------- numerals and art
+
+    function test_greekNumeralsAndSectionLetters() public view {
+        assertEq(renderer.greek(1), unicode"Αʹ");
+        assertEq(renderer.greek(9), unicode"Θʹ");
+        assertEq(renderer.greek(10), unicode"Ιʹ");
+        assertEq(renderer.greek(41), unicode"ΜΑʹ");
+        assertEq(renderer.greek(271), unicode"ΣΟΑʹ");
+        assertEq(renderer.greek(313), unicode"ΤΙΓʹ");
+        assertEq(renderer.greek(1000), unicode"͵Αʹ");
+        assertEq(renderer.sectionLetter(271), unicode"Β"); // 271 % 10 = 1 → second letter
+        assertEq(renderer.sectionLetter(10), unicode"Α");
+        assertEq(renderer.sectionLetter(9), unicode"Κ"); // index 9 = tenth letter
     }
+
+    function test_everyEmblemSealBorderAndMetalRenders() public view {
+        for (uint8 v; v < 6; ++v) {
+            uint8[5] memory t = [v, v, v % 5, v % 5, v % 4];
+            string memory s = renderer.svg(t, false, 100 + v);
+            assertGt(bytes(s).length, 1500);
+        }
+        uint8[5] memory p = [uint8(0), 0, 0, 0, 0];
+        assertGt(bytes(renderer.svg(p, true, 5)).length, 500); // pending
+    }
+
+    // ---------------------------------------------------------------- tokenURI image
 
     // ---------------------------------------------------------------- helpers
 

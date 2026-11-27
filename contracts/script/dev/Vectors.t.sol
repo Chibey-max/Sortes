@@ -18,16 +18,19 @@ contract Vectors is Test {
         string memory json = string.concat('{"chainId":9800,"house":"', vm.toString(address(h)), '","traits":[');
         for (uint256 i; i < 40; ++i) {
             bytes32 res = keccak256(abi.encode("vector", i));
-            Traits.Set memory s = Traits.derive(res);
-            json = string.concat(json, i == 0 ? "" : ",", '{"result":"', vm.toString(res), '","tier":[');
-            for (uint256 t; t < 5; ++t) json = string.concat(json, t == 0 ? "" : ",", vm.toString(s.tier[t]));
-            json = string.concat(json, '],"variant":[');
-            for (uint256 t; t < 5; ++t) json = string.concat(json, t == 0 ? "" : ",", vm.toString(s.variant[t]));
+            uint8[5] memory t = Traits.derive(res);
+            json = string.concat(json, i == 0 ? "" : ",", '{"result":"', vm.toString(res), '","traits":[');
+            for (uint256 k; k < 5; ++k) json = string.concat(json, k == 0 ? "" : ",", vm.toString(t[k]));
             json = string.concat(json, '],"names":[');
-            for (uint256 t; t < 5; ++t) {
-                json = string.concat(json, t == 0 ? "" : ",", '"', r.variantName(t, s.tier[t], s.variant[t]), '"');
+            for (uint256 k; k < 5; ++k) {
+                json = string.concat(json, k == 0 ? "" : ",", '"', r.variantName(k, t[k]), '"');
             }
             json = string.concat(json, "]}");
+        }
+        json = string.concat(json, '],"greek":[');
+        uint16[8] memory ns = [uint16(1), 9, 10, 41, 128, 271, 313, 1000];
+        for (uint256 i; i < ns.length; ++i) {
+            json = string.concat(json, i == 0 ? "" : ",", '{"n":', vm.toString(uint256(ns[i])), ',"numeral":"', r.greek(ns[i]), '","letter":"', r.sectionLetter(ns[i]), '"}');
         }
         bytes32 secret = keccak256("secret");
         address ben = address(0x1234);

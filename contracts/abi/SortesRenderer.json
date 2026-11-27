@@ -1,24 +1,50 @@
 [
   {
     "type": "function",
+    "name": "greek",
+    "inputs": [
+      {
+        "name": "n",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "sectionLetter",
+    "inputs": [
+      {
+        "name": "n",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
     "name": "svg",
     "inputs": [
       {
-        "name": "s",
-        "type": "tuple",
-        "internalType": "struct Traits.Set",
-        "components": [
-          {
-            "name": "tier",
-            "type": "uint8[5]",
-            "internalType": "uint8[5]"
-          },
-          {
-            "name": "variant",
-            "type": "uint8[5]",
-            "internalType": "uint8[5]"
-          }
-        ]
+        "name": "t",
+        "type": "uint8[5]",
+        "internalType": "uint8[5]"
       },
       {
         "name": "pending",
@@ -26,7 +52,7 @@
         "internalType": "bool"
       },
       {
-        "name": "requestId",
+        "name": "n",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -65,21 +91,9 @@
         "internalType": "bool"
       },
       {
-        "name": "s",
-        "type": "tuple",
-        "internalType": "struct Traits.Set",
-        "components": [
-          {
-            "name": "tier",
-            "type": "uint8[5]",
-            "internalType": "uint8[5]"
-          },
-          {
-            "name": "variant",
-            "type": "uint8[5]",
-            "internalType": "uint8[5]"
-          }
-        ]
+        "name": "t",
+        "type": "uint8[5]",
+        "internalType": "uint8[5]"
       }
     ],
     "outputs": [
@@ -89,7 +103,26 @@
         "internalType": "string"
       }
     ],
-    "stateMutability": "view"
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "traitName",
+    "inputs": [
+      {
+        "name": "trait",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "pure"
   },
   {
     "type": "function",
@@ -101,12 +134,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "tier",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
-      {
-        "name": "variant",
+        "name": "v",
         "type": "uint8",
         "internalType": "uint8"
       }

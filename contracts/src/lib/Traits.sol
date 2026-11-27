@@ -2,56 +2,72 @@
 pragma solidity 0.8.28;
 
 /// @title Traits
-/// @notice Turns a Sortes result into five traits. Each trait rolls a tier out of 10,000
-/// (Common 6,000, Uncommon 2,800, Rare 1,000, Legendary 200), then a variant within the tier.
-/// The floor (every trait Common, variant 0) is what a timed-out request gets.
+/// @notice Turns a Sortes result into the five traits of a Lot plate. Each trait rolls
+/// independently: `roll = keccak256(abi.encode(result, i)) % 10000`, then the first variant whose
+/// cumulative weight (in basis points) exceeds the roll wins.
+///
+///   0 Metal   bronze 26%, silver 22%, iron 18%, verdigris 14%, black iron 12%, gold 8%
+///   1 Emblem  owl 25%, column 22%, amphora 18%, scales 16%, laurel 14%, kleros 5%
+///   2 Border  bead and reel 28%, dentil 24%, egg and dart 20%, running wave 16%, meander 12%
+///   3 Seal    wheel 30%, double owl 25%, owl in wreath 20%, gorgon 16%, star 9%
+///   4 Frame   common 60%, uncommon 26%, rare 10%, legendary 4%   (the lot's tier)
+///
+/// The floor (a timed-out request) is silver / owl / bead and reel / wheel / common.
 library Traits {
-    uint256 internal constant COUNT = 5; // Background, Shape, Pattern, Eyes, Aura
+    uint256 internal constant COUNT = 5;
 
-    uint8 internal constant COMMON = 0;
-    uint8 internal constant UNCOMMON = 1;
-    uint8 internal constant RARE = 2;
-    uint8 internal constant LEGENDARY = 3;
+    uint8 internal constant FRAME_COMMON = 0;
+    uint8 internal constant FRAME_UNCOMMON = 1;
+    uint8 internal constant FRAME_RARE = 2;
+    uint8 internal constant FRAME_LEGENDARY = 3;
 
-    struct Set {
-        uint8[5] tier;
-        uint8[5] variant;
+    /// @notice Number of variants of `trait`.
+    function variantCount(uint256 trait) internal pure returns (uint256) {
+        if (trait == 0 || trait == 1) return 6;
+        if (trait == 2 || trait == 3) return 5;
+        return 4;
     }
 
-    /// @notice Tier from a roll in [0, 10000).
-    function tierOf(uint256 roll) internal pure returns (uint8) {
-        if (roll < 200) return LEGENDARY;
-        if (roll < 1200) return RARE;
-        if (roll < 4000) return UNCOMMON;
-        return COMMON;
+    /// @notice Weight of `variant` of `trait`, in basis points (sums to 10,000 per trait).
+    function weightBps(uint256 trait, uint256 variant) internal pure returns (uint256) {
+        if (trait == 0) return _w6(variant, [uint16(2600), 2200, 1800, 1400, 1200, 800]);
+        if (trait == 1) return _w6(variant, [uint16(2500), 2200, 1800, 1600, 1400, 500]);
+        if (trait == 2) return _w5(variant, [uint16(2800), 2400, 2000, 1600, 1200]);
+        if (trait == 3) return _w5(variant, [uint16(3000), 2500, 2000, 1600, 900]);
+        return _w4(variant, [uint16(6000), 2600, 1000, 400]);
     }
 
-    /// @notice Variants per tier: Common 4, Uncommon 3, Rare 2, Legendary 2.
-    function variantsIn(uint8 tier) internal pure returns (uint256) {
-        if (tier == COMMON) return 4;
-        if (tier == UNCOMMON) return 3;
-        return 2;
-    }
-
-    function derive(bytes32 result) internal pure returns (Set memory s) {
+    function derive(bytes32 result) internal pure returns (uint8[5] memory t) {
         for (uint256 i; i < COUNT; ++i) {
             uint256 roll = uint256(keccak256(abi.encode(result, i))) % 10000;
-            uint8 tier = tierOf(roll);
-            uint256 pick = uint256(keccak256(abi.encode(result, i, "v")));
-            s.tier[i] = tier;
-            s.variant[i] = uint8(pick % variantsIn(tier));
+            uint256 n = variantCount(i);
+            uint256 acc;
+            uint256 pick = n - 1;
+            for (uint256 k; k < n; ++k) {
+                acc += weightBps(i, k);
+                if (roll < acc) {
+                    pick = k;
+                    break;
+                }
+            }
+            t[i] = uint8(pick);
         }
     }
 
-    function floor() internal pure returns (Set memory s) {
-        // All zeros: every trait Common, variant 0.
-        return s;
+    /// @notice silver, owl, bead and reel, wheel, common.
+    function floor() internal pure returns (uint8[5] memory t) {
+        t[0] = 1;
     }
 
-    /// @notice Highest tier across the five traits (used for gallery filters).
-    function topTier(Set memory s) internal pure returns (uint8 top) {
-        for (uint256 i; i < COUNT; ++i) {
-            if (s.tier[i] > top) top = s.tier[i];
-        }
+    function _w6(uint256 v, uint16[6] memory w) private pure returns (uint256) {
+        return w[v];
+    }
+
+    function _w5(uint256 v, uint16[5] memory w) private pure returns (uint256) {
+        return w[v];
+    }
+
+    function _w4(uint256 v, uint16[4] memory w) private pure returns (uint256) {
+        return w[v];
     }
 }

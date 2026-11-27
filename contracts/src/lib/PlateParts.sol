@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
+/// @title PlateParts
+/// @notice SVG fragments for a Sortes Lot plate: six emblems, five seals, five border patterns.
+/// GENERATED from the Sortes design (LotArt component); do not edit by hand.
+library PlateParts {
+    function emblem(uint8 i) internal pure returns (string memory) {
+        if (i == 0) return '<path d="M50 14 C31 14 23 30 25 47 C27 70 37 88 50 92 C63 88 73 70 75 47 C77 30 69 14 50 14 Z"></path><path d="M30 22 L25 8 L38 18 M70 22 L75 8 L62 18"></path><circle cx="39" cy="38" r="9"></circle><circle cx="61" cy="38" r="9"></circle><circle cx="39" cy="38" r="3" fill="currentColor"></circle><circle cx="61" cy="38" r="3" fill="currentColor"></circle><path d="M47 48 L50 56 L53 48"></path><path d="M33 58 Q42 72 46 86 M67 58 Q58 72 54 86 M41 64 L44 70 M59 64 L56 70"></path><path d="M36 96 H64 M44 92 V97 M50 92 V97 M56 92 V97"></path>';
+        else if (i == 1) return '<path d="M16 12 H84 V18 H16 Z"></path><path d="M24 18 C12 18 12 34 24 34 C32 34 32 25 25 25"></path><path d="M76 18 C88 18 88 34 76 34 C68 34 68 25 75 25"></path><path d="M24 18 H76 M28 34 H72"></path><path d="M32 36 H68 V80 H32 Z"></path><path d="M40 38 V78 M50 38 V78 M60 38 V78"></path><path d="M28 80 H72 V86 H28 Z M22 86 H78 V93 H22 Z"></path>';
+        else if (i == 2) return '<path d="M41 8 H59 V15 C59 21 55 23 55 28 C73 34 79 50 73 66 C68 78 59 86 50 90 C41 86 32 78 27 66 C21 50 27 34 45 28 C45 23 41 21 41 15 Z"></path><path d="M45 18 C32 16 27 26 34 36 M55 18 C68 16 73 26 66 36"></path><path d="M28 50 H72 M27 58 H73"></path><path d="M32 54 L36 51 L40 54 L44 51 L48 54 L52 51 L56 54 L60 51 L64 54 L68 51"></path><path d="M44 90 H56 V96 H44 Z"></path>';
+        else if (i == 3) return '<path d="M50 10 V88 M36 92 H64 M42 88 H58"></path><circle cx="50" cy="12" r="3.5"></circle><path d="M14 24 H86"></path><path d="M20 24 L10 54 M20 24 L30 54 M80 24 L70 54 M80 24 L90 54"></path><path d="M8 54 H32 C30 64 26 68 20 68 C14 68 10 64 8 54 Z M68 54 H92 C90 64 86 68 80 68 C74 68 70 64 68 54 Z"></path>';
+        else if (i == 4) return '<path d="M50 92 C24 88 12 64 18 38 C21 26 27 18 34 12"></path><path d="M50 92 C76 88 88 64 82 38 C79 26 73 18 66 12"></path><g fill="currentColor" stroke="none"><ellipse cx="22" cy="70" rx="7" ry="3.2" transform="rotate(-60 22 70)"></ellipse><ellipse cx="17" cy="54" rx="7" ry="3.2" transform="rotate(-85 17 54)"></ellipse><ellipse cx="19" cy="38" rx="7" ry="3.2" transform="rotate(-110 19 38)"></ellipse><ellipse cx="26" cy="24" rx="7" ry="3.2" transform="rotate(-130 26 24)"></ellipse><ellipse cx="33" cy="82" rx="7" ry="3.2" transform="rotate(-30 33 82)"></ellipse><ellipse cx="78" cy="70" rx="7" ry="3.2" transform="rotate(60 78 70)"></ellipse><ellipse cx="83" cy="54" rx="7" ry="3.2" transform="rotate(85 83 54)"></ellipse><ellipse cx="81" cy="38" rx="7" ry="3.2" transform="rotate(110 81 38)"></ellipse><ellipse cx="74" cy="24" rx="7" ry="3.2" transform="rotate(130 74 24)"></ellipse><ellipse cx="67" cy="82" rx="7" ry="3.2" transform="rotate(30 67 82)"></ellipse></g><path d="M44 92 C47 97 53 97 56 92 M50 92 L44 99 M50 92 L56 99"></path>';
+        else if (i == 5) return '<path d="M30 10 H86 V92 H30 Z"></path><path d="M14 6 H24 L21 14 H17 Z M17 14 H21 V90 H17 Z"></path><path d="M14 92 H28"></path><g fill="currentColor" stroke="none"><rect x="36" y="18" width="9" height="4"></rect><rect x="49" y="18" width="9" height="4"></rect><rect x="62" y="18" width="9" height="4"></rect><rect x="75" y="18" width="7" height="4"></rect><rect x="36" y="29" width="9" height="4"></rect><rect x="62" y="29" width="9" height="4"></rect><rect x="75" y="29" width="7" height="4"></rect><rect x="36" y="40" width="9" height="4"></rect><rect x="49" y="40" width="9" height="4"></rect><rect x="75" y="40" width="7" height="4"></rect><rect x="49" y="51" width="9" height="4"></rect><rect x="62" y="51" width="9" height="4"></rect><rect x="36" y="62" width="9" height="4"></rect><rect x="49" y="62" width="9" height="4"></rect><rect x="62" y="62" width="9" height="4"></rect><rect x="75" y="62" width="7" height="4"></rect><rect x="36" y="73" width="9" height="4"></rect><rect x="62" y="73" width="9" height="4"></rect><rect x="75" y="73" width="7" height="4"></rect></g><rect x="47" y="49" width="13" height="8" fill="#e0703f" stroke="none"></rect>';
+        revert("emblem");
+    }
+
+    function seal(uint8 i) internal pure returns (string memory) {
+        if (i == 0) return '<circle cx="20" cy="20" r="18"></circle><circle cx="20" cy="20" r="11"></circle><path d="M20 9 V31 M9 20 H31"></path><circle cx="20" cy="20" r="2.5" fill="currentColor"></circle>';
+        else if (i == 1) return '<rect x="3" y="3" width="34" height="34" rx="2"></rect><path d="M20 10 C15 10 11 14 11 19 C11 25 15 29 20 31 C25 29 29 25 29 19 C29 14 25 10 20 10 Z"></path><circle cx="20" cy="16" r="2.4"></circle><path d="M12 22 L6 28 M28 22 L34 28"></path>';
+        else if (i == 2) return '<circle cx="20" cy="20" r="18"></circle><path d="M20 9 C14 9 12 14 13 19 C14 26 17 30 20 31 C23 30 26 26 27 19 C28 14 26 9 20 9 Z"></path><circle cx="17" cy="16" r="2"></circle><circle cx="23" cy="16" r="2"></circle><path d="M8 28 C6 22 6 16 9 11 M32 28 C34 22 34 16 31 11"></path>';
+        else if (i == 3) return '<circle cx="20" cy="20" r="18"></circle><circle cx="20" cy="21" r="8"></circle><circle cx="17" cy="19" r="1.3" fill="currentColor"></circle><circle cx="23" cy="19" r="1.3" fill="currentColor"></circle><path d="M17 24 Q20 26 23 24"></path><path d="M20 13 Q18 8 20 5 M27 15 Q31 11 33 12 M13 15 Q9 11 7 12 M28 22 Q33 22 35 25 M12 22 Q7 22 5 25"></path>';
+        else if (i == 4) return '<circle cx="20" cy="20" r="18"></circle><path d="M20 7 V33 M7 20 H33 M11 11 L29 29 M29 11 L11 29"></path><circle cx="20" cy="20" r="3.5" fill="currentColor"></circle>';
+        revert("seal");
+    }
+
+    /// @dev `eng` is the engraving colour of the plate metal.
+    function pattern(uint8 i, string memory eng) internal pure returns (string memory) {
+        if (i == 0) return string.concat('<pattern id="pt" width="12" height="16" patternUnits="userSpaceOnUse"><circle cx="6" cy="4" r="2.6" fill="', eng, '"></circle><ellipse cx="6" cy="11.5" rx="1.8" ry="3.4" fill="', eng, '"></ellipse>', '</pattern>');
+        else if (i == 1) return string.concat('<pattern id="pt" width="12" height="8" patternUnits="userSpaceOnUse"><rect x="2" y="1" width="8" height="5" fill="', eng, '"></rect>', '</pattern>');
+        else if (i == 2) return string.concat('<pattern id="pt" width="12" height="16" patternUnits="userSpaceOnUse"><ellipse cx="6" cy="6" rx="3.6" ry="4.8" fill="none" stroke="', eng, '" stroke-width="1.5"></ellipse><path d="M6 12 V16 M4 14 L6 16 L8 14" fill="none" stroke="', eng, '" stroke-width="1.3"></path>', '</pattern>');
+        else if (i == 3) return string.concat('<pattern id="pt" width="12" height="16" patternUnits="userSpaceOnUse"><path d="M6 16 C6 11 1 11 1 7 C1 3 6 2 8 5 C10 8 6 10 5 7" fill="none" stroke="', eng, '" stroke-width="1.6"></path>', '</pattern>');
+        else if (i == 4) return string.concat('<pattern id="pt" width="12" height="16" patternUnits="userSpaceOnUse"><path d="M1 16 V1 H11 V12 H5 V6 H8" fill="none" stroke="', eng, '" stroke-width="1.6"></path>', '</pattern>');
+        revert("pattern");
+    }
+}

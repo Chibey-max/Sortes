@@ -203,12 +203,7 @@
             "internalType": "bool"
           },
           {
-            "name": "tier",
-            "type": "uint8[5]",
-            "internalType": "uint8[5]"
-          },
-          {
-            "name": "variant",
+            "name": "traits",
             "type": "uint8[5]",
             "internalType": "uint8[5]"
           }
@@ -536,12 +531,7 @@
     ],
     "outputs": [
       {
-        "name": "tier",
-        "type": "uint8[5]",
-        "internalType": "uint8[5]"
-      },
-      {
-        "name": "variant",
+        "name": "",
         "type": "uint8[5]",
         "internalType": "uint8[5]"
       }
@@ -713,13 +703,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "tier",
-        "type": "uint8[5]",
-        "indexed": false,
-        "internalType": "uint8[5]"
-      },
-      {
-        "name": "variant",
+        "name": "traits",
         "type": "uint8[5]",
         "indexed": false,
         "internalType": "uint8[5]"

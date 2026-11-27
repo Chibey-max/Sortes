@@ -28,8 +28,8 @@ contract SortesMint is ERC721, Ownable, ReentrancyGuard {
         bool finalized;
         bool isFloor;
         bool sponsored;
-        uint8[5] tier;
-        uint8[5] variant;
+        /// @dev [metal, emblem, border, seal, frame]; the frame is the lot's tier.
+        uint8[5] traits;
     }
 
     uint256 public totalMinted;
@@ -39,7 +39,7 @@ contract SortesMint is ERC721, Ownable, ReentrancyGuard {
     mapping(address => uint256) public sponsoredMints;
 
     event Minted(uint256 indexed tokenId, address indexed to, uint256 indexed requestId, bool sponsored);
-    event Revealed(uint256 indexed tokenId, uint8[5] tier, uint8[5] variant, bool floor);
+    event Revealed(uint256 indexed tokenId, uint8[5] traits, bool floor);
     event Sponsored(address indexed from, uint256 amount);
     event SponsorWithdrawn(address indexed to, uint256 amount);
 
@@ -104,21 +104,20 @@ contract SortesMint is ERC721, Ownable, ReentrancyGuard {
         if (lot.finalized) revert AlreadyFinalized();
         (ISortesHouse.Status status, bytes32 result) = house.resultOf(lot.requestId);
 
-        Traits.Set memory s;
+        uint8[5] memory t;
         bool isFloor;
         if (status == ISortesHouse.Status.Fulfilled) {
-            s = Traits.derive(result);
+            t = Traits.derive(result);
         } else if (status == ISortesHouse.Status.HouseTimedOut || status == ISortesHouse.Status.UserTimedOut) {
-            s = Traits.floor();
+            t = Traits.floor();
             isFloor = true;
         } else {
             revert NotFinal();
         }
         lot.finalized = true;
         lot.isFloor = isFloor;
-        lot.tier = s.tier;
-        lot.variant = s.variant;
-        emit Revealed(tokenId, s.tier, s.variant, isFloor);
+        lot.traits = t;
+        emit Revealed(tokenId, t, isFloor);
     }
 
     // ---------------------------------------------------------------- sponsor pool
@@ -150,17 +149,13 @@ contract SortesMint is ERC721, Ownable, ReentrancyGuard {
     }
 
     /// @notice The traits a result would give, for verifiers.
-    function traitsFor(bytes32 result) external pure returns (uint8[5] memory tier, uint8[5] memory variant) {
-        Traits.Set memory s = Traits.derive(result);
-        return (s.tier, s.variant);
+    function traitsFor(bytes32 result) external pure returns (uint8[5] memory) {
+        return Traits.derive(result);
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
         Lot storage lot = _lots[tokenId];
-        Traits.Set memory s;
-        s.tier = lot.tier;
-        s.variant = lot.variant;
-        return renderer.tokenURI(tokenId, lot.requestId, lot.finalized, lot.isFloor, s);
+        return renderer.tokenURI(tokenId, lot.requestId, lot.finalized, lot.isFloor, lot.traits);
     }
 }
