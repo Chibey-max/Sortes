@@ -203,7 +203,7 @@ An OpenZeppelin ERC-721 called "Sortes Lots", with a supply of 1,000 and a price
 | `finalize(tokenId)` | Anyone can call. Reads `house.resultOf`. `Fulfilled`: derives traits from the result. Either timeout: assigns floor traits. Emits `Revealed(tokenId, traits, floor)` |
 | `tokenURI(tokenId)` | Base64 JSON with on-chain SVG. Pending tokens show a "revealing" card with the request id |
 
-**Traits:** 5 traits (Background, Shape, Pattern, Eyes, Aura). Each has 4 tiers with fixed weights out of 10,000: Common 6,000, Uncommon 2,800, Rare 1,000, Legendary 200. Each tier has 2 to 4 variants.
+**Traits (updated after the web design):** 5 traits drawn as a bronze plate: Metal, Emblem, Border, Seal and Frame (tier: common 60%, uncommon 26%, rare 10%, legendary 4%). Each trait rolls independently as `keccak256(result, i) % 10000` against its own odds table (see README, "The lots" and `contracts/src/lib/Traits.sol`). The floor plate is silver, owl, bead and reel, wheel, common. This supersedes the earlier Background/Shape/Pattern/Eyes/Aura layout.
 
 ```
 roll_i  = uint256(keccak256(abi.encode(result, i))) % 10000   // tier

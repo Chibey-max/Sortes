@@ -32,7 +32,7 @@ Scope: `SortesHouse`, `SortesMint`, `SortesDice`, the house daemon and the web a
 | House + validator | No | Neither knows the secret. |
 | User + validator | No | Neither knows the house value before committing. |
 
-This is the honest limit of any two-party commit-reveal: the scheme protects each party from the other, not the two of them from a third party who trusts neither. For Sortes Lots the "third party" is other collectors, so the house's incentive matters: it is a bonded, public operator whose every reveal is checkable on `/verify`, and a pattern of suspiciously rare lots for one wallet would be visible on chain. The README states this plainly rather than claiming more.
+This is the honest limit of any two-party commit-reveal: the scheme protects each party from the other, not the two of them from a third party who trusts neither. For Sortes Lots the "third party" is other collectors, so the house's incentive matters: it is a bonded, public operator whose every reveal is checkable on `/verify`, and a pattern of suspiciously rare lots (gold, kleros or legendary plates) for one wallet would be visible on chain. The README states this plainly rather than claiming more.
 
 ## Threat table
 
