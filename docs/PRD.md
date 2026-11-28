@@ -340,7 +340,7 @@ Target: 40+ Foundry tests, all green, with the exact count in the README. The pr
 - [x] All 8 attacks run with hashes recorded
 - [ ] Verifier passes on 5 random lots
 - [ ] Daemon ran 24 hours unattended
-- [ ] QCAI Stage 1 and Stage 2 PDFs in `docs/audit/`
+- [x] QCAI Stage 1 and Stage 2 PDFs in `docs/audit/`
 
 ## 13. Repo layout, environments and deployment
 
@@ -381,7 +381,7 @@ sortes/
 
 - [ ] Public repo with an MIT licence
 - [ ] README: thesis line; "Judge it in 5 minutes" (open the app, mint, verify, read the attacks); how it works; guarantees; trust model; scope; addresses and transaction hashes; exact test count; credits for every kit and library; rubric map
-- [ ] `docs/THREAT_MODEL.md`, `docs/AUDIT.md`, `docs/audit/` (both QCAI PDFs, same EVM/Solidity setting), `docs/INTEGRATION.md`
+- [x] `docs/THREAT_MODEL.md`, `docs/AUDIT.md`, `docs/audit/` (both QCAI PDFs, same EVM/Solidity setting), `docs/INTEGRATION.md`
 - [ ] `AI_USAGE.md` (tools used, what for, what you checked by hand), with the AI-native box ticked
 - [x] Featured image: a grid of 6 real minted lots with the Sortes name
 - [ ] Video under 3 minutes

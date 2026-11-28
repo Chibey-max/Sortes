@@ -6,5 +6,7 @@ The flatten is `contracts/src/` concatenated in dependency order. OpenZeppelin 5
 
 | File | What |
 | --- | --- |
-| [`qcai-stage1.pdf`](qcai-stage1.pdf) | Stage 1, 28 Nov 2026 08:29 (downloaded as `QoreChain_Audit_Sortes_1795850998599.pdf`). Score 65/100, risk HIGH, 6 findings. Responses in [`../AUDIT.md`](../AUDIT.md). |
-| `qcai-stage2.pdf` | Stage 2: same flatten and setting, after every Stage 1 finding was answered. Not exported yet. |
+| [`qcai-stage1.pdf`](qcai-stage1.pdf) | Stage 1, 28 Nov 2026 08:29 (downloaded as `QoreChain_Audit_Sortes_1795850998599.pdf`). Score 65/100, risk HIGH, 6 findings. |
+| [`qcai-stage2.pdf`](qcai-stage2.pdf) | Stage 2, 28 Nov 2026 08:43 (downloaded as `QoreChain_Audit_Sortes_1795851809468.pdf`). Score 72/100, risk HIGH, same 6 findings, wording closer to the code. |
+
+Every finding and the post-quantum design: [`../AUDIT.md`](../AUDIT.md).

@@ -2,12 +2,12 @@
 
 Sortes is audited with QCAI in two stages, both with the **Ethereum (EVM/Solidity)** setting, as the fest FAQ asks for EVM contracts.
 
-**Status (28 Nov 2026):** Stage 1 is in the repo. Stage 2 is not: run the same flatten again after the table below, export `docs/audit/qcai-stage2.pdf`.
+**Status (28 Nov 2026):** both stages are in the repo. Same flatten, same Ethereum (EVM/Solidity) setting. No contract change between the runs.
 
 | Stage | Report | Scope |
 | --- | --- | --- |
 | Stage 1 | [`docs/audit/qcai-stage1.pdf`](audit/qcai-stage1.pdf) (28 Nov 2026, 08:29; downloaded as `QoreChain_Audit_Sortes_1795850998599.pdf`) | [`Sortes.flat.sol`](audit/Sortes.flat.sol): `contracts/src/` concatenated |
-| Stage 2 | `docs/audit/qcai-stage2.pdf` (pending export) | Same flatten, after every Stage 1 finding below is answered |
+| Stage 2 | [`docs/audit/qcai-stage2.pdf`](audit/qcai-stage2.pdf) (28 Nov 2026, 08:43; downloaded as `QoreChain_Audit_Sortes_1795851809468.pdf`) | Same flatten, after every Stage 1 finding below was answered |
 
 Under the EVM setting QCAI prints "Quantum readiness: Not scored". That is expected: the post-quantum design is explained in the next section instead.
 
@@ -74,4 +74,15 @@ No finding required a contract change. The access control the auditor asked for 
 
 ## Stage 2
 
-Stage 2 is the same flatten, same Ethereum (EVM/Solidity) setting, after the responses above. Export the PDF as `docs/audit/qcai-stage2.pdf` and list remaining items here. Zero remaining findings is not required.
+Stage 2 score **72/100** (up from 65), risk still **HIGH**, 6 findings: 2 high, 2 medium, 1 low, 1 info. Quantum readiness: "not scored for this setting". The source was unchanged; the auditor's wording moved toward the Stage 1 reading.
+
+| Severity | Finding | Stage 1 | Stage 2 | Assessment |
+| --- | --- | --- | --- | --- |
+| HIGH | Missing access control on admin functions | asked for `onlyOwner` | now: "additional access control **beyond PQC signatures**" | Same finding. PQC is the access control. Extra ECDSA ownership would let a stolen window key pass. Unchanged. |
+| HIGH | Overflow in bond calculation | SafeMath | "explicit overflow checks or SafeMath" | Same finding. Solidity 0.8 already reverts. Unchanged. |
+| MEDIUM | Unchecked PQC return values | stricter checks | same | Same finding. `_requirePqc` already checks `ok`, length, and decoded `true`. Unchanged. |
+| MEDIUM | Front-running in request flow | "commitment scheme" | "commitment scheme or delay" | Same finding. Commit-reveal plus `LOCK_DELAY` already exists. Unchanged. |
+| LOW | Unbounded loop | gas limits | now names `MAX_SKIP` | Same finding, closer to the code: `MAX_SKIP` is 32 and `SkipTooFar` reverts. Unchanged. |
+| INFO | ERC-721 `supportsInterface` | add the method | same | Same finding. OpenZeppelin `ERC721` already implements it. Unchanged. |
+
+The executive summary now says ML-DSA signatures "add a layer of security" and then treats relying on them as a risk. That is the EVM setting again: it cannot score `pqcVerify`. The post-quantum design above is the answer. Zero remaining findings is not required; the six repeats are documented, not silent.
