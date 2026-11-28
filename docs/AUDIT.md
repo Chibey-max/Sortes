@@ -2,12 +2,12 @@
 
 Sortes is audited with QCAI in two stages, both with the **Ethereum (EVM/Solidity)** setting, as the fest FAQ asks for EVM contracts.
 
-**Status (28 Nov 2026):** the paste input is ready as [`docs/audit/Sortes.flat.sol`](audit/Sortes.flat.sol). Stage 1 and Stage 2 PDFs are **not** in the repo yet. The dashboard auditor at https://dashboard.qorechain.io/audit requires a signed-in QoreChain account; this session reached the login screen and stopped there rather than inventing reports. After you sign in, paste the flatten, pick Ethereum (EVM/Solidity), export the PDF as `docs/audit/qcai-stage1.pdf`, fill the table below from that report, then run Stage 2 and save `qcai-stage2.pdf`.
+**Status (28 Nov 2026):** Stage 1 is in the repo. Stage 2 is not: run the same flatten again after the table below, export `docs/audit/qcai-stage2.pdf`.
 
 | Stage | Report | Scope |
 | --- | --- | --- |
-| Stage 1 | `docs/audit/qcai-stage1.pdf` (pending export) | flatten of `contracts/src/` (SortesHouse, SortesMint, SortesRenderer, SortesDice, lib/, probe) |
-| Stage 2 | `docs/audit/qcai-stage2.pdf` (pending export) | Same input, after every Stage 1 finding below is answered |
+| Stage 1 | [`docs/audit/qcai-stage1.pdf`](audit/qcai-stage1.pdf) (28 Nov 2026, 08:29; downloaded as `QoreChain_Audit_Sortes_1795850998599.pdf`) | [`Sortes.flat.sol`](audit/Sortes.flat.sol): `contracts/src/` concatenated |
+| Stage 2 | `docs/audit/qcai-stage2.pdf` (pending export) | Same flatten, after every Stage 1 finding below is answered |
 
 Under the EVM setting QCAI prints "Quantum readiness: Not scored". That is expected: the post-quantum design is explained in the next section instead.
 
@@ -59,11 +59,19 @@ The same attacks were also sent as real diana transactions (`npm run attacks` in
 
 ## Stage 1 findings and responses
 
-Each Stage 1 finding gets one row: **fixed** (with the commit and the regression test's name), or **false positive** (with the reason).
+Stage 1 score **65/100**, risk **HIGH**, 6 findings (2 high, 2 medium, 1 low, 1 info). Quantum readiness: "not scored for this setting". The line numbers in the PDF do not match `SortesHouse.sol` or the flatten (QCAI cited 350/363/373/380 for "admin functions"; those lines are internals `_setChain` / `_acceptChainValue` / `_close`). Each finding was matched by description.
+
+No finding required a contract change. The access control the auditor asked for as `onlyOwner` is the ML-DSA-87 check the Ethereum setting cannot see; the rest are capped loops, checked arithmetic, or OpenZeppelin ERC-721.
 
 | # | Severity | Finding (QCAI wording, short) | Response | Evidence |
 | --- | --- | --- | --- | --- |
+| 1 | HIGH | Missing access control on critical admin functions | **False positive / by design.** Enroll, withdraw, setPayout, rotateAnchor and setAccepting all call `_requirePqc`: registered ML-DSA-87 key plus `pqcVerify` over a nonce-bound digest. `onlyOwner` would be ECDSA `msg.sender`, which is exactly the key we refuse to trust. The cited lines are internal helpers, not the admin surface. | `test_guarantee5_ecdsaOnlyThiefFails`, `test_withdraw_badSignature`, `test_setPayout_validAndBad`, `test_setAccepting_badSignature`, `test_enroll_revertsOnBadSignature`; live `/attacks` T-07 |
+| 2 | HIGH | Potential integer overflow in bond calculation | **False positive.** Solidity 0.8 reverts on overflow. The live check is `bond < (openRequests + 1) * PENALTY` (`request`, line 173). `PENALTY` is 2 QOR; wrapping `openRequests` is not reachable. A low bond reverts `BondTooLow`. | `test_enroll_revertsWhenBondTooLow`; `test_request` path that expects `BondTooLow` |
+| 3 | MEDIUM | Unchecked return values from PQC precompile calls | **False positive.** `_requirePqc` requires a successful `staticcall`, a minimum return length, then decodes: missing/empty key → `KeyNotRegistered`; wrong algorithm → `KeyNotProven`; verify false or short data → `BadPqcSignature`. | `test_enroll_revertsWhenKeyNotRegistered`, `test_enroll_revertsWhenKeyIsNotMlDsa87`, `test_enroll_revertsOnBadSignature`; `house` `npm run test:live` |
+| 4 | MEDIUM | Front-running in request flow | **By design.** A copied `request` is bound to `beneficiary` + `consumer` in the commitment; a copied `revealHouse` only works with the hash-chain preimage, which anyone may post. Commit-reveal plus lock delay is the protocol. A second commit-reveal would not change who can post the house value. | `test_guarantee1_houseCannotSteer`, `test_guarantee2_userCannotSteer` |
+| 5 | LOW | Unbounded loop in chain value acceptance | **False positive.** `_acceptChainValue` walks at most `MAX_SKIP` (32) hashes and reverts `SkipTooFar` otherwise. Longer gaps use `checkpoint`. | `test_revealHouse_revertsOnSkipOver32`, `test_checkpoint_unblocksLongSkip` |
+| 6 | INFO | ERC-721 missing optional `supportsInterface` | **False positive.** `SortesMint` is OpenZeppelin `ERC721`, which already implements ERC-165 `supportsInterface`. | OpenZeppelin `ERC721.supportsInterface` |
 
 ## Stage 2
 
-Stage 2 was run on the code after the responses above. Remaining items and their status are listed in the Stage 2 report.
+Stage 2 is the same flatten, same Ethereum (EVM/Solidity) setting, after the responses above. Export the PDF as `docs/audit/qcai-stage2.pdf` and list remaining items here. Zero remaining findings is not required.

@@ -4,9 +4,7 @@ Paste [`Sortes.flat.sol`](Sortes.flat.sol) into the dashboard Contract Auditor a
 
 The flatten is `contracts/src/` concatenated in dependency order. OpenZeppelin 5.x stays as imports.
 
-Dated PDFs (export from the auditor after each run):
-
-- `qcai-stage1.pdf`: first run
-- `qcai-stage2.pdf`: second run, after every Stage 1 finding is answered in [`../AUDIT.md`](../AUDIT.md)
-
-Those PDFs are not in the repo until both runs have been exported from a signed-in dashboard session. Do not invent them.
+| File | What |
+| --- | --- |
+| [`qcai-stage1.pdf`](qcai-stage1.pdf) | Stage 1, 28 Nov 2026 08:29 (downloaded as `QoreChain_Audit_Sortes_1795850998599.pdf`). Score 65/100, risk HIGH, 6 findings. Responses in [`../AUDIT.md`](../AUDIT.md). |
+| `qcai-stage2.pdf` | Stage 2: same flatten and setting, after every Stage 1 finding was answered. Not exported yet. |
