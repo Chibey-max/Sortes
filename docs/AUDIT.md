@@ -1,11 +1,13 @@
 # Audit
 
-Sortes is audited with QCAI in two stages, both with the **Ethereum (EVM/Solidity)** setting, as the fest FAQ asks for EVM contracts. The dated reports live in [`docs/audit/`](audit/):
+Sortes is audited with QCAI in two stages, both with the **Ethereum (EVM/Solidity)** setting, as the fest FAQ asks for EVM contracts.
+
+**Status (28 Nov 2026):** the paste input is ready as [`docs/audit/Sortes.flat.sol`](audit/Sortes.flat.sol). Stage 1 and Stage 2 PDFs are **not** in the repo yet. The dashboard auditor at https://dashboard.qorechain.io/audit requires a signed-in QoreChain account; this session reached the login screen and stopped there rather than inventing reports. After you sign in, paste the flatten, pick Ethereum (EVM/Solidity), export the PDF as `docs/audit/qcai-stage1.pdf`, fill the table below from that report, then run Stage 2 and save `qcai-stage2.pdf`.
 
 | Stage | Report | Scope |
 | --- | --- | --- |
-| Stage 1 | `docs/audit/qcai-stage1.pdf` | `contracts/src/` (SortesHouse, SortesMint, SortesRenderer, SortesDice, lib/) |
-| Stage 2 | `docs/audit/qcai-stage2.pdf` | Same scope, after every Stage 1 finding below was answered |
+| Stage 1 | `docs/audit/qcai-stage1.pdf` (pending export) | flatten of `contracts/src/` (SortesHouse, SortesMint, SortesRenderer, SortesDice, lib/, probe) |
+| Stage 2 | `docs/audit/qcai-stage2.pdf` (pending export) | Same input, after every Stage 1 finding below is answered |
 
 Under the EVM setting QCAI prints "Quantum readiness: Not scored". That is expected: the post-quantum design is explained in the next section instead.
 

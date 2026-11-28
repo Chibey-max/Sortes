@@ -334,10 +334,10 @@ Target: 40+ Foundry tests, all green, with the exact count in the README. The pr
 
 ### Acceptance on diana
 
-- [ ] House enrolled with a real ML-DSA-87 signature (transaction hash in the README)
-- [ ] 30+ mints settled, 10+ from other wallets
-- [ ] At least one house timeout and one user timeout, triggered on purpose
-- [ ] All 8 attacks run with hashes recorded
+- [x] House enrolled with a real ML-DSA-87 signature (transaction hash in the README)
+- [x] 30+ mints settled, 10+ from other wallets
+- [x] At least one house timeout and one user timeout, triggered on purpose
+- [x] All 8 attacks run with hashes recorded
 - [ ] Verifier passes on 5 random lots
 - [ ] Daemon ran 24 hours unattended
 - [ ] QCAI Stage 1 and Stage 2 PDFs in `docs/audit/`
@@ -383,7 +383,7 @@ sortes/
 - [ ] README: thesis line; "Judge it in 5 minutes" (open the app, mint, verify, read the attacks); how it works; guarantees; trust model; scope; addresses and transaction hashes; exact test count; credits for every kit and library; rubric map
 - [ ] `docs/THREAT_MODEL.md`, `docs/AUDIT.md`, `docs/audit/` (both QCAI PDFs, same EVM/Solidity setting), `docs/INTEGRATION.md`
 - [ ] `AI_USAGE.md` (tools used, what for, what you checked by hand), with the AI-native box ticked
-- [ ] Featured image: a grid of 6 real minted lots with the Sortes name
+- [x] Featured image: a grid of 6 real minted lots with the Sortes name
 - [ ] Video under 3 minutes
 - [ ] Project page: category, kits, features, every qor1 address, How it's made (pointing to the audit docs), country Nigeria, student
 - [ ] Post on X with #BuildBeforeQDay on the day the mint goes live, and again at submission
