@@ -1,5 +1,16 @@
-.pg-Footer .ft{container-type:inline-size;background:var(--band);color:var(--bandInk);font-family:'Manrope',sans-serif}
-.pg-Footer .ft .cols{display:grid;grid-template-columns:1.6fr repeat(3,1fr);gap:40px}
+.pg-Footer .ft{
+  container-type:inline-size;
+  background:var(--band);
+  color:var(--bandInk);
+  font-family:'Manrope',sans-serif;
+  width:100%;
+  max-width:100%;
+  position:relative;
+  overflow:hidden;
+  box-sizing:border-box;
+}
+.pg-Footer .ft .cols{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:clamp(20px,3cqw,40px)}
 .pg-Footer .ft a{color:var(--bandMut);text-decoration:none;font-size:14px;line-height:2.1}
 .pg-Footer .ft a:hover{color:var(--bandInk)}
 @container (max-width: 760px){.pg-Footer .ft .cols{grid-template-columns:1fr 1fr}.pg-Footer .ft .brand{grid-column:1 / -1}}
+@container (max-width: 420px){.pg-Footer .ft .cols{grid-template-columns:minmax(0,1fr)}}

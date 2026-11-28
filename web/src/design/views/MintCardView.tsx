@@ -46,8 +46,11 @@ export function MintCardView({ v }: { v: any }) {
                 ))}
               </div>
               <div>{(v.rows as any[]).map((r, i) => (<div key={i} className="kv"><span>{r.k}</span>{r.b ? <b className="mono">{r.v}</b> : <span className="mono">{r.v}</span>}</div>))}</div>
+              {v.faucetWarn && (
+                <div className="alert warn" role="status"><span><b style={css("display: block; margin-bottom: 2px")}>This account has 0 QOR.</b>Open the <a href={v.faucetUrl} target="_blank" rel="noreferrer">QoreChain faucet</a>, paste <span className="mono">{v.faucetQor}</span> (same 20 bytes as this MetaMask account), claim test QOR, then come back. In MetaMask, click Connect for this site if it still says not connected.</span></div>
+              )}
               {v.windowWarn && (
-                <div className="alert warn" role="status"><span><b style={css("display: block; margin-bottom: 2px")}>No open EVM window.</b>MetaMask can only send after you open an EVM access window in QoreX for this account. It is a one-time step per session.</span></div>
+                <div className="alert warn" role="status"><span><b style={css("display: block; margin-bottom: 2px")}>No open EVM window.</b>MetaMask cannot open it. In QoreX, select the Ethereum account that matches this MetaMask 0x (add it from the same phrase if you only see a native key). Then switch to QoreX · free and press Draw — that path opens a one-shot window.</span></div>
               )}
               <div className="well" style={css("padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px")}>
                 <span><span className="lab" style={css("display: block; margin-bottom: 6px")}>Your secret · kept in this browser</span><span className="mono" style={css("font-size: 14px")}>{v.secretMask}</span></span>
@@ -122,10 +125,12 @@ export function MintCardView({ v }: { v: any }) {
                 </span>
               </div>
               {v.floorNote && <div className="alert warn" role="status"><span>{v.floorNote}</span></div>}
+              <p className="small" style={css("margin: 0")}>This is an NFT on diana. The lot page shows every trait and the on-chain proof. Verify re-runs the math in this browser. The gallery lists every plate that has been drawn.</p>
               <div style={css("display: grid; grid-template-columns: 1fr 1fr; gap: 8px")}>
                 <A className="btn btn-p" href={`/lot/${v.art.n}`}>View the lot</A>
-                <button className="btn btn-g" onClick={v.again}>Draw another</button>
+                <A className="btn btn-g" href={`/verify?token=${v.art.n}`}>Verify the math</A>
               </div>
+              <button className="btn btn-g btn-w" onClick={v.again}>Draw another</button>
             </div>
           )}
 

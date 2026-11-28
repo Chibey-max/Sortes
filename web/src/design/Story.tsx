@@ -26,8 +26,6 @@ export const Story = memo(function Story({ mode = "auto", theme = "light", p: pP
 
   useEffect(() => {
     rm.current = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    // Frames are small WebPs (~30 KB). Load every 6th first so scrubbing has coverage at once, the rest
-    // when the browser is idle. Only the frame on screen is decoded; the others stay compressed.
     const imgs: HTMLImageElement[] = [];
     const load = (i: number) => { const im = new Image(); im.decoding = "async"; im.src = frameUrl(i + 1); imgs[i] = im; };
     for (let i = 0; i < FRAME_COUNT; i += 6) load(i);
@@ -36,28 +34,38 @@ export const Story = memo(function Story({ mode = "auto", theme = "light", p: pP
     const lt = idle(() => { for (let i = 0; i < FRAME_COUNT; i++) if (!imgs[i]) load(i); });
     if (mode === "fixed") return () => cancelIdle(lt);
 
-    // The loop runs only while the story is on screen, and in scroll mode only while it is catching up
-    // with the scroll position, so an idle page costs nothing.
-    let raf = 0, visible = true;
+    let raf = 0, visible = true, lastUi = 0, lastFrame = -1;
+    const paintFrame = (pp: number) => {
+      const n = Math.round(1 + cl(pp / FEND) * 143);
+      if (n === lastFrame) return;
+      lastFrame = n;
+      const img = rootRef.current?.querySelector("img.seq") as HTMLImageElement | null;
+      if (img) img.src = frameUrl(n);
+    };
     const measure = () => {
       const root = rootRef.current;
       const host = root?.closest("[data-scrub]") as HTMLElement | null;
       if (host && root) { const r = host.getBoundingClientRect(); const span = r.height - root.offsetHeight; tgt.current = span > 0 ? cl(-r.top / span) : 0; }
     };
-    const smooth = () => (rm.current ? 1 : (window as any).__lenis ? 0.22 : 0.12);
+    const smooth = () => (rm.current ? 1 : (window as any).__lenis ? 0.42 : 0.14);
     const tick = (now: number) => {
       raf = 0;
       if (mode === "scroll") {
         measure();
         const d = tgt.current - cur.current;
-        cur.current = Math.abs(d) < 0.0003 ? tgt.current : cur.current + d * smooth();
+        cur.current = Math.abs(d) < 0.0004 ? tgt.current : cur.current + d * smooth();
       } else {
         const dt = Math.min(64, now - (last.current ?? now)); last.current = now;
         if (!pausedRef.current && !rm.current) acc.current += dt;
         const cyc = 26000; const t = (acc.current % cyc) / cyc;
         cur.current = rm.current ? 0.03 : Math.min(1, t * 1.1);
       }
-      if (Math.abs(shown.current - cur.current) > 0.0008 || (cur.current === tgt.current && shown.current !== cur.current)) { shown.current = cur.current; setP(cur.current); }
+      paintFrame(cur.current);
+      if (now - lastUi > 32 || Math.abs(shown.current - cur.current) > 0.012) {
+        lastUi = now;
+        shown.current = cur.current;
+        setP(cur.current);
+      }
       const moving = mode === "scroll" ? cur.current !== tgt.current : !pausedRef.current && !rm.current;
       if (visible && moving) raf = requestAnimationFrame(tick);
     };
@@ -96,12 +104,12 @@ export const Story = memo(function Story({ mode = "auto", theme = "light", p: pP
   const out: Record<string, any> = { setRoot, h, frame: frameUrl(want), theme: dark ? "dark" : "light" };
   out.alt = "A marble allotment machine with rows of bronze tickets and a bronze tube with a funnel.";
   out.veinOp = dark ? "0" : "1";
-  const segs: [number, number, number][] = [[-1, 0.07, 0.03], [0.085, 0.23, 0.022], [0.245, 0.38, 0.022], [0.395, 0.52, 0.022], [0.535, 0.67, 0.022], [0.9, 2, 0.035]];
+  const segs: [number, number, number][] = [[-1, 0.07, 0.045], [0.085, 0.23, 0.04], [0.245, 0.38, 0.04], [0.395, 0.52, 0.04], [0.535, 0.67, 0.04], [0.9, 2, 0.05]];
   segs.forEach((s, i) => {
     const o = win(s[0], s[1], s[2]);
     out["o" + i] = o.toFixed(3); out["pe" + i] = o > 0.5 ? "auto" : "none";
     const dir = pp < (s[0] + s[1]) / 2 ? 1 : -1;
-    out["y" + i] = (dir * (1 - o) * 36).toFixed(1); out["r" + i] = (dir * (1 - o) * 14).toFixed(1);
+    out["y" + i] = (dir * (1 - o) * 16).toFixed(1); out["r" + i] = (dir * (1 - o) * 4).toFixed(1);
   });
   const lp = (i: number) => cl((pp - segs[i][0]) / (segs[i][1] - segs[i][0]));
   const l1 = lp(1);

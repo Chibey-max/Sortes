@@ -8,6 +8,8 @@ import { blocksToSeconds, fmtDuration, qor, useEvmWindow, useHouseParams, useMin
 import { artProps, FLOOR, TIERS, TIER_VAR, sharePct, tierOf } from "@/lib/traits";
 import { short, num } from "@/lib/live";
 import { isDeployed } from "@/lib/config";
+import { HOW_TO_SWITCH_DIANA } from "@/lib/qorex";
+import { toQorAddress } from "@/lib/bech32";
 import { verify } from "@/lib/verify";
 import { useEffect, useState } from "react";
 import { LotActions } from "@/components/LotActions";
@@ -20,9 +22,10 @@ export function MintCard({ ctl, dark }: { ctl: MintCtl; dark?: boolean | string 
   const { state, path, setPath, secret } = ctl;
   const stats = useMintStats().data;
   const params = useHouseParams().data;
-  const win = useEvmWindow(wallet.address, wallet.kind === "evm" || path === "evm").data;
-  const bal = useQorBalance(wallet.address).data;
-  const used = useSponsoredUsed(wallet.address).data;
+  const mintAddr = path === "evm" ? (wallet.evmAddress ?? wallet.address) : wallet.address;
+  const win = useEvmWindow(mintAddr, path === "evm").data;
+  const bal = useQorBalance(mintAddr).data;
+  const used = useSponsoredUsed(mintAddr).data;
   const [checks, setChecks] = useState<string>();
 
   useEffect(() => {
@@ -31,8 +34,8 @@ export function MintCard({ ctl, dark }: { ctl: MintCtl; dark?: boolean | string 
   }, [state.step, state.requestId]);
 
   const connected = wallet.kind !== null;
-  const price = stats?.price;
-  const poolLeft = stats && stats.price > 0n ? Number(stats.pool / stats.price) : undefined;
+  const price = stats ? BigInt(stats.price) : undefined;
+  const poolLeft = stats && price !== undefined && price > 0n ? Number(BigInt(stats.pool) / price) : undefined;
   const perWallet = stats ? Number(stats.perWallet) : 3;
   const sponsoredLeft = used === null || used === undefined ? perWallet : Math.max(0, perWallet - used);
 
@@ -43,15 +46,20 @@ export function MintCard({ ctl, dark }: { ctl: MintCtl; dark?: boolean | string 
     : s === "houseRevealed" || s === "userRevealSent" ? "revealing" : "drawn";
   const prog = ({ connect: 0, ready: 0, signing: 1, committed: 2, revealing: 3, drawn: 4 } as const)[step];
 
-  const e = state.error;
+  const e = path === "evm" && /display|native QoreX key|Cross-VM|coin 118/i.test(`${state.error?.title ?? ""} ${state.error?.desc ?? ""}`)
+    ? undefined
+    : state.error;
   const errCls = e ? (e.kind === "rejected" || e.kind === "other" ? "bad" : "warn") : "";
-  const errAction = e && e.kind === "network" ? { t: "Switch to QoreChain diana", go: () => { void wallet.switchToDiana(); ctl.dismissError(); } } : e && e.kind === "rejected" ? { t: "Try again", go: ctl.dismissError } : e ? { t: "Back", go: ctl.dismissError } : undefined;
-  // a wallet-level error (no QoreX / MetaMask / wrong network) when not yet connected
-  const werr = wallet.error === "no-qorex" ? { t: "QoreX was not found.", d: "Sortes signs with QoreX because it supports post-quantum keys. Install the extension and reload this page." }
+  const retry = () => { ctl.dismissError(); void ctl.start(); };
+  const errAction = e && (e.kind === "network" || e.kind === "rejected" || e.kind === "other" || e.kind === "window")
+    ? { t: "Try again", go: retry }
+    : e ? { t: "Back", go: ctl.dismissError } : undefined;
+  // Connected QoreX already passed enable(diana); a leftover "network" flag is a false alarm.
+  const werr = wallet.error === "no-qorex" && !wallet.qorex ? { t: "QoreX was not found.", d: "Sortes signs with QoreX because it supports post-quantum keys. Install the extension and reload this page." }
     : wallet.error === "no-metamask" ? { t: "MetaMask was not found.", d: "Install MetaMask, or use QoreX for a free draw." }
     : wallet.error === "rejected" ? { t: "You rejected the connection.", d: "Nothing was sent. You can try again." }
-    : wallet.error === "network" ? { t: "You are on the wrong network.", d: "Switch your wallet to QoreChain diana (testnet), then try again." }
-    : !wallet.evmChainOk ? { t: "Wrong network.", d: "MetaMask is not on QoreChain diana. Switch to diana to draw." } : undefined;
+    : wallet.error === "network" && !wallet.qorex ? { t: "QoreX is not on diana.", d: HOW_TO_SWITCH_DIANA }
+    : path === "evm" && !wallet.evmChainOk ? { t: "Wrong network.", d: "MetaMask is not on QoreChain diana. Switch to diana to draw." } : undefined;
   const hasErr = !!(e || werr);
 
   const evmNeeds = price !== undefined ? price : 10n ** 18n;
@@ -73,8 +81,8 @@ export function MintCard({ ctl, dark }: { ctl: MintCtl; dark?: boolean | string 
   const t = tierOf(traits);
 
   const pathTabs = [
-    { t: "QoreX · free", on: path === "qorex" ? "true" : "false", go: () => { setPath("qorex"); if (wallet.kind !== "qorex") void wallet.connectQorex(); } },
-    { t: `MetaMask · ${price !== undefined ? qor(price, 0) : "1"} QOR`, on: path === "evm" ? "true" : "false", go: () => { setPath("evm"); if (wallet.kind !== "evm") void wallet.connectEvm(); } },
+    { t: "QoreX · free", on: path === "qorex" ? "true" : "false", go: () => { ctl.dismissError(); setPath("qorex"); if (wallet.kind !== "qorex") void wallet.connectQorex(); } },
+    { t: `MetaMask · ${price !== undefined ? qor(price, 0) : "1"} QOR`, on: path === "evm" ? "true" : "false", go: () => { ctl.dismissError(); setPath("evm"); void wallet.connectEvm(); } },
   ];
   const rows = path === "qorex"
     ? [{ k: "Price", v: "Free (sponsored)", b: true }, { k: "Free draws left for you", v: `${sponsoredLeft} of ${perWallet}` }, { k: "Free-draw pool", v: poolLeft === undefined ? "…" : `${num(poolLeft)} left` }]
@@ -87,12 +95,17 @@ export function MintCard({ ctl, dark }: { ctl: MintCtl; dark?: boolean | string 
     hasErr, errCls: e ? errCls : "warn", errT: e?.title ?? werr?.t, errD: e?.desc ?? werr?.d, errAction: step === "connect" ? undefined : errAction,
     isConnect: step === "connect", isReady: step === "ready", isSigning: step === "signing", isCommitted: step === "committed", isRevealing: step === "revealing", isDrawn: step === "drawn",
     busy: wallet.busy, connectQorex: () => void wallet.connectQorex(), connectMetaMask: () => void wallet.connectEvm(),
-    pathTabs, rows, windowWarn: path === "evm" && wallet.kind === "evm" && win !== null && !windowOpen, secretMask: sec, newSecret: ctl.regenerate,
+    pathTabs, rows,
+    windowWarn: path === "evm" && !!wallet.evmAddress && win !== null && !windowOpen,
+    faucetWarn: path === "evm" && lowBalance,
+    faucetQor: mintAddr ? toQorAddress(mintAddr) : "",
+    faucetUrl: "https://docs.qorechain.io/dashboard/faucet",
+    secretMask: sec, newSecret: ctl.regenerate,
     cta, blocked: blocked ? "true" : "false", start: () => void ctl.start(),
-    readyNote: path === "qorex" ? "One approval in QoreX. We send your reveal for you." : "One signature in MetaMask. We send your reveal for you.",
-    waitTitle: path === "qorex" ? "Waiting for QoreX" : "Waiting for MetaMask", method: path === "qorex" ? "mintSponsored(bytes32)" : "mint(bytes32)",
+    readyNote: path === "qorex" ? "One approval in QoreX. We send your reveal for you." : "MetaMask pays 1 QOR. If the window is closed, select this same 0x in QoreX and use QoreX · free instead.",
+    waitTitle: path === "qorex" ? "Waiting for QoreX" : "Waiting for QoreX / MetaMask", method: path === "qorex" ? "mintSponsored(bytes32)" : "mint(bytes32)",
     commitShort: state.saved ? short(state.saved.commit, 8, 6) : "…", valueLabel: path === "qorex" ? "free (sponsored)" : `${qor(price, 0)} QOR`,
-    waitNote: path === "qorex" ? "Check the QoreX window. Only the hash of your secret leaves this browser." : "Check MetaMask. Only the hash of your secret leaves this browser.",
+    waitNote: path === "qorex" ? "Check the QoreX window. Only the hash of your secret leaves this browser." : "Approve in QoreX if it opens (it creates the EVM window for this one send). Only the hash of your secret leaves this browser.",
     commitLine: req ? "Commit included in block " : "Commit sent. Waiting for the block…", commitBlock: req ? `#${num(req.requestBlock)}` : "",
     hasRequest: !!req, lockBlock: req ? `#${num(req.lockBlock)}` : "", minedLabel: `${mined} of 2 mined`,
     lockBars: [{ on: mined >= 1, pulse: mined < 1 }, { on: mined >= 2, pulse: mined === 1 }],

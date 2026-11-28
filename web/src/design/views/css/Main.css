@@ -5,10 +5,14 @@
 .pg-Main .lab{font-family:'Manrope',sans-serif;font-weight:700;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
 .pg-Main .pb{transition:transform .2s,opacity .2s}.pg-Main .pb:hover{transform:translateY(-1px);opacity:.92}
 .pg-Main .ob{transition:background .2s,color .2s}.pg-Main .ob:hover{background:var(--ink)!important;color:var(--bg)!important}
-.pg-Main .lift{transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s}.pg-Main .lift:hover{transform:translateY(-6px);box-shadow:0 30px 60px rgba(70,45,25,.16)}
+.pg-Main .lift{transition:transform .35s cubic-bezier(.2,.8,.2,1),border-color .35s}.pg-Main .lift:hover{transform:translateY(-4px)}
 .pg-Main .row{transition:background .2s}.pg-Main .row:hover{background:rgba(var(--inkr),.04)}
 .pg-Main .tab{cursor:pointer;background:none;border:0;text-align:left}
-.pg-Main .pg{container-type:inline-size}
+.pg-Main .pg{container-type:inline-size;max-width:1440px;margin-inline:auto;overflow-x:clip}
+.pg-Main [data-scrub="1"]{overflow:clip;max-width:100%}
+.pg-Main .mr{overflow-x:clip}
+.pg-Main .mr>section{box-sizing:border-box;max-width:100%}
+.pg-Main .cta-mark{font-size:clamp(64px,18cqw,220px)!important;max-width:100%;overflow:hidden}
 @container (max-width: 640px){
  .pg-Main .prow{grid-template-columns:76px 1fr auto!important;gap:12px!important}
  .pg-Main .prow .pt{display:none}
@@ -17,12 +21,15 @@
  .pg-Main .rrow .rres{grid-column:2}
  .pg-Main .mr{margin-top:-24px!important;border-radius:26px 26px 0 0!important}
 }
-@container (min-width: 1800px){.pg-Main .mr>section:not(.full){padding-left:calc((100% - 1600px) / 2)!important;padding-right:calc((100% - 1600px) / 2)!important}}
-.pg-Main .mq{overflow:hidden;padding:12px 0}
-.pg-Main .trk{display:flex;gap:16px;padding-right:16px;width:max-content;animation:mq 60s linear infinite}
+.pg-Main .mq{overflow-x:auto;overflow-y:hidden;max-width:100%;padding:12px 0;touch-action:pan-x;cursor:grab;scrollbar-width:none;overscroll-behavior-x:contain;mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent)}
+.pg-Main .mq::-webkit-scrollbar{display:none}
+.pg-Main .mq:active{cursor:grabbing}
+.pg-Main .trk{display:flex;gap:16px;width:max-content;animation:mq 60s linear infinite}
 .pg-Main .trk.rev{animation-direction:reverse;animation-duration:72s}
-.pg-Main .mq:hover .trk,.pg-Main .mq:focus-within .trk{animation-play-state:paused}
-@keyframes mq{to{transform:translateX(-50%)}}
+@keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.pg-Main .desk-shot{overflow:hidden}
+.pg-Main .desk-shot img{animation:deskIn .75s ease both}
+@keyframes deskIn{from{opacity:0}to{opacity:1}}
 .pg-Main .lc{transition:transform .45s cubic-bezier(.2,.8,.2,1),border-color .3s}.pg-Main .lc:hover,.pg-Main .lc:focus-visible{transform:translateY(-10px) rotate(-1.2deg);border-color:var(--acc)!important}
 @media (prefers-reduced-motion: reduce){.pg-Main .mq{overflow-x:auto}.pg-Main .trk{animation:none!important}}
 @keyframes dropIn{from{opacity:0;transform:translateY(-12px)}}.pg-Main .drop{animation:dropIn .5s cubic-bezier(.2,.8,.2,1) both}

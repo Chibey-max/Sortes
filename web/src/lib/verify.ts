@@ -1,8 +1,9 @@
 import { parseAbiItem, zeroHash, type Hex } from "viem";
 import { CONFIG } from "./config";
-import { publicClient, readHouseParams, readLot, readRequest, tokenOfRequest } from "./chain";
+import { getLogsChunked, publicClient, readHouseParams, readLot, readRequest, tokenOfRequest } from "./chain";
 import { Status, commitmentOf, hashForward, resultFrom } from "./protocol";
 import { FLOOR, deriveTraits, variantName } from "./traits";
+import { secretForRequest } from "./secrets";
 
 export interface Check {
   name: string;
@@ -25,8 +26,8 @@ const ENROLLED = parseAbiItem("event Enrolled(bytes32 anchor, uint64 chainLength
 /** The anchor in force when `requestBlock` was mined (the house may have rotated since). */
 async function anchorAt(requestBlock: bigint): Promise<Hex> {
   const [enrolled, rotated] = await Promise.all([
-    publicClient.getLogs({ address: CONFIG.house, event: ENROLLED, fromBlock: CONFIG.fromBlock, toBlock: requestBlock }),
-    publicClient.getLogs({ address: CONFIG.house, event: ROTATED, fromBlock: CONFIG.fromBlock, toBlock: requestBlock }),
+    getLogsChunked({ address: CONFIG.house, event: ENROLLED, fromBlock: CONFIG.fromBlock, toBlock: requestBlock }),
+    getLogsChunked({ address: CONFIG.house, event: ROTATED, fromBlock: CONFIG.fromBlock, toBlock: requestBlock }),
   ]);
   const all = [...enrolled, ...rotated].sort((a, b) => Number(a.blockNumber! - b.blockNumber!));
   const last = all.at(-1);
@@ -52,8 +53,12 @@ export async function verify(input: { requestId?: bigint; tokenId?: bigint }): P
 
   // 1. House value hashes forward to the anchor.
   if (r.houseValue !== zeroHash) {
-    const anchor = await anchorAt(r.requestBlock);
-    const ok = hashForward(r.houseValue, Number(r.position)) === anchor;
+    let anchor = params.anchor as Hex;
+    let ok = hashForward(r.houseValue, Number(r.position)) === anchor;
+    if (!ok) {
+      anchor = await anchorAt(r.requestBlock);
+      ok = hashForward(r.houseValue, Number(r.position)) === anchor;
+    }
     checks.push({ name: "House value hashes to the anchor", pass: ok, detail: `keccak256 applied ${r.position} time${r.position === 1n ? "" : "s"} to ${short(r.houseValue)} ${ok ? "=" : "≠"} anchor ${short(anchor)}` });
   } else {
     checks.push({ name: "House value hashes to the anchor", pass: null, detail: r.status === Status.HouseTimedOut ? "The house never revealed (timed out)." : "Not revealed yet." });
@@ -62,13 +67,20 @@ export async function verify(input: { requestId?: bigint; tokenId?: bigint }): P
   // 2. Secret matches the commitment (secret read from the Fulfilled event).
   let secret: Hex | undefined;
   if (r.status === Status.Fulfilled) {
-    const logs = await publicClient.getLogs({ address: CONFIG.house, event: FULFILLED, args: { id: requestId }, fromBlock: r.houseRevealBlock, toBlock: r.houseRevealBlock + BigInt(params.W_USER) + 1n });
+    const logs = await getLogsChunked({
+      address: CONFIG.house,
+      event: FULFILLED,
+      fromBlock: r.houseRevealBlock,
+      toBlock: r.houseRevealBlock + BigInt(params.W_USER) + 1n,
+      extra: { args: { id: requestId } },
+    });
     secret = logs[0]?.args.secret as Hex | undefined;
+    if (!secret) secret = secretForRequest(requestId.toString())?.secret;
     if (secret) {
       const c = commitmentOf(secret, r.beneficiary, r.consumer, BigInt(CONFIG.evmChainId));
       checks.push({ name: "Secret matches the commitment", pass: c === r.commit, detail: `commit(${short(secret)}, beneficiary, consumer) ${c === r.commit ? "=" : "≠"} ${short(r.commit)}` });
     } else {
-      checks.push({ name: "Secret matches the commitment", pass: false, detail: "Fulfilled event not found." });
+      checks.push({ name: "Secret matches the commitment", pass: false, detail: "Fulfilled event not found (RPC log range). Open this lot from the same browser you minted in, or paste the fulfill transaction hash." });
     }
   } else {
     checks.push({ name: "Secret matches the commitment", pass: null, detail: "The user has not revealed." });

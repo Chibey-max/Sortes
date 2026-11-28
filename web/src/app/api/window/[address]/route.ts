@@ -11,7 +11,18 @@ export async function GET(_req: Request, { params }: { params: { address: string
     const { toQorAddress } = await import("@/lib/bech32");
     qor = toQorAddress(a);
   }
-  const r = await fetch(`${CONFIG.rest}/qorechain/pqc/v1/evm_window/${qor}`, { cache: "no-store" });
-  const j = await r.json().catch(() => ({}));
-  return NextResponse.json({ address: qor, ...(j.window ?? j) }, { status: r.ok ? 200 : 502 });
+  const url = `${CONFIG.rest}/qorechain/pqc/v1/evm_window/${qor}`;
+  let last = "fetch failed";
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8000) });
+      const j = await r.json().catch(() => ({}));
+      return NextResponse.json({ address: qor, ...(j.window ?? j) }, { status: r.ok ? 200 : 502 });
+    } catch (e: any) {
+      last = String(e?.cause?.code ?? e?.message ?? e);
+      await new Promise((ok) => setTimeout(ok, 400 * (i + 1)));
+    }
+  }
+  // Degrade instead of 500: MetaMask mint still works; the window pill just shows unknown.
+  return NextResponse.json({ address: qor, found: false, live: false, error: last });
 }

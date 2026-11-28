@@ -67,7 +67,7 @@ export function WalletMenu({ inline = false, onDone }: { inline?: boolean; onDon
       "no-qorex": ["QoreX was not found.", "Install the QoreX extension, switch it to the diana testnet, then reload."],
       "no-metamask": ["MetaMask was not found.", "Install MetaMask, or use QoreX for a free draw."],
       rejected: ["Connection cancelled.", "Nothing was shared. You can try again."],
-      network: ["Wrong network.", "Switch your wallet to QoreChain diana (testnet), then try again."],
+      network: ["QoreX is not on diana.", "If the menu already says Switch back to mainnet, you are on diana. Close it and try again."],
     }[w.error];
     if (m) toast.push({ c: "var(--bad)", t: m[0], d: m[1] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -108,7 +108,7 @@ export function WalletMenu({ inline = false, onDone }: { inline?: boolean; onDon
         <span className="wm-ico" aria-hidden="true" style={w.kind === "qorex" ? { background: "var(--ink)", color: "var(--acc)" } : { background: "#f6851b", color: "#fff" }}>{w.kind === "qorex" ? "Q" : "M"}</span>
         <span className="wm-tx"><b>{w.kind === "qorex" ? (w.qorex?.name || "QoreX") : "MetaMask"}</b><span>{bal !== undefined ? `${qor(bal)} QOR` : "Reading balance…"}</span></span>
       </div>
-      {!w.evmChainOk && (
+      {w.kind === "evm" && !w.evmChainOk && (
         <button type="button" className="wm-warn" onClick={() => w.switchToDiana()}>Wrong network. Switch to diana</button>
       )}
       {w.qorex && (

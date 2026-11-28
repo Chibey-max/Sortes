@@ -5,6 +5,36 @@ import { Status } from "./protocol";
 
 export const publicClient = createPublicClient({ chain: qorechainTestnet as any, transport: http(CONFIG.evmRpc) });
 
+/** diana's eth_getLogs rejects wide ranges (~2k+). Walk in 1,500-block slices. */
+const LOG_SPAN = 1_500n;
+
+export async function getLogsChunked(args: {
+  address: Address;
+  event: any;
+  fromBlock: bigint;
+  toBlock: bigint | "latest";
+  extra?: Record<string, unknown>;
+}) {
+  const head = args.toBlock === "latest" ? await publicClient.getBlockNumber() : args.toBlock;
+  const from = args.fromBlock < 0n ? 0n : args.fromBlock;
+  const out: any[] = [];
+  for (let a = from; a <= head; a += LOG_SPAN) {
+    const b = a + LOG_SPAN - 1n > head ? head : a + LOG_SPAN - 1n;
+    try {
+      out.push(...(await publicClient.getLogs({ address: args.address, event: args.event, fromBlock: a, toBlock: b, ...(args.extra ?? {}) } as any)));
+    } catch {
+      const tiny = 400n;
+      for (let x = a; x <= b; x += tiny) {
+        const y = x + tiny - 1n > b ? b : x + tiny - 1n;
+        try {
+          out.push(...(await publicClient.getLogs({ address: args.address, event: args.event, fromBlock: x, toBlock: y, ...(args.extra ?? {}) } as any)));
+        } catch { /* skip a dead slice rather than emptying the gallery */ }
+      }
+    }
+  }
+  return out;
+}
+
 export interface HouseRequest {
   id: bigint;
   consumer: Address;
@@ -73,7 +103,7 @@ const REQUESTED = parseAbiItem("event Requested(uint256 indexed id, address inde
 export async function findRequestByCommit(beneficiary: Address, commit: Hex, lookback = 5_000n): Promise<bigint | undefined> {
   const head = await publicClient.getBlockNumber();
   const from = head > lookback ? head - lookback : 0n;
-  const logs = await publicClient.getLogs({ address: CONFIG.house, event: REQUESTED, args: { beneficiary }, fromBlock: from < CONFIG.fromBlock ? CONFIG.fromBlock : from, toBlock: head });
+  const logs = await getLogsChunked({ address: CONFIG.house, event: REQUESTED, fromBlock: from < CONFIG.fromBlock ? CONFIG.fromBlock : from, toBlock: head, extra: { args: { beneficiary } } });
   for (const log of logs.reverse()) {
     const id = log.args.id!;
     const r = await readRequest(id);
@@ -98,7 +128,7 @@ export async function requestTxs(id: bigint): Promise<{ label: string; tx: Hex }
   const from = r.requestBlock;
   const out: { label: string; tx: Hex }[] = [];
   for (const [label, sig] of events) {
-    const logs = await publicClient.getLogs({ address: CONFIG.house, event: parseAbiItem(sig) as any, args: { id } as any, fromBlock: from, toBlock: from + 2_000n });
+    const logs = await getLogsChunked({ address: CONFIG.house, event: parseAbiItem(sig) as any, fromBlock: from, toBlock: from + 2_000n, extra: { args: { id } } });
     for (const l of logs) out.push({ label, tx: l.transactionHash! });
   }
   return out;
@@ -140,8 +170,16 @@ export async function readLots(ids: bigint[]): Promise<Lot[]> {
 
 /** Lots (token ids) owned by an address, newest first, found by scanning Minted events. */
 export async function lotsOf(owner: Address): Promise<bigint[]> {
-  const logs = await publicClient.getLogs({ address: CONFIG.mint, event: parseAbiItem("event Minted(uint256 indexed tokenId, address indexed to, uint256 indexed requestId, bool sponsored)"), args: { to: owner }, fromBlock: CONFIG.fromBlock, toBlock: "latest" });
-  return logs.map((l) => l.args.tokenId as bigint).reverse();
+  const { total } = await readMintStats();
+  const n = Number(total);
+  const want = owner.toLowerCase();
+  const ids: bigint[] = [];
+  await Promise.all(Array.from({ length: n }, async (_, i) => {
+    const id = BigInt(i + 1);
+    const o = await ownerOf(id);
+    if (o && o.toLowerCase() === want) ids.push(id);
+  }));
+  return ids.sort((a, b) => Number(b - a));
 }
 
 /** Block time of a block, as an epoch-seconds number. */

@@ -56,7 +56,7 @@ export function MainPage() {
 
   useEffect(() => {
     if (window.innerHeight < 1500) setScroll(true);
-    const t = setInterval(() => { if (!pausedRef.current && !document.hidden) setStep((s) => (s + 1) % 5); }, 3200);
+    const t = setInterval(() => { if (!pausedRef.current && !document.hidden) setStep((s) => (s + 1) % 5); }, 4200);
     fetch("/attacks.json").then((r) => (r.ok ? r.json() : [])).then((l: AttackResult[]) => setResults(Object.fromEntries(l.map((x) => [x.name, x])))).catch(() => {});
     return () => clearInterval(t);
   }, []);
@@ -79,7 +79,7 @@ export function MainPage() {
   const refusal = (a: (typeof ATTACKS)[number]) => { const r = results[a.key]; return { id: a.id, t: a.title, res: a.res, c: a.kind === "reverted" ? "var(--acc)" : a.kind === "floor" ? "var(--warn)" : "var(--mut)", live: !!r }; };
   const v = {
     theme, isDark: theme === "dark", setTheme,
-    wallet: wallet.label, mode: scroll ? "scroll" : "auto", pinH: scroll ? "640vh" : "900px", storyH: scroll ? "100vh" : "900px",
+    wallet: wallet.label, mode: scroll ? "scroll" : "auto", pinH: scroll ? "min(640vh, 5760px)" : "900px", storyH: scroll ? "min(100svh, 900px)" : "900px",
     forgeHtml: highlight(FORGE).replace(/(\[PASS\] [^\n]*)/, '<span style="color:#8cc27a">$1</span>').replace(/(1 passed · 0 failed)/, '<span style="color:#f0a37a">$1</span>'),
     codeHtml: highlight(COINFLIP_SHORT),
     copyCode: () => { navigator.clipboard?.writeText(COINFLIP_SHORT).then(() => toast.push({ c: "var(--ok)", t: "Copied", d: "The example contract is on your clipboard." })); },
@@ -88,7 +88,7 @@ export function MainPage() {
       { img: frameUrl(STILL.funnel), pos: "74% 32%", cap: "white ball, the funnel", alt: "A white ball dropping into the bronze funnel", r: "II", who: "You", tag: "committed blind", t: "A secret,", ti: "sent as a hash", p: "Your browser keeps the secret and sends only its hash. Swapping it later reverts; staying silent gets you the floor.", mb: "#f7f2e9", mf: "#16110d", rows: [{ k: "commitment", v: "0x6c40…b215", c: "var(--mut)" }, { k: "value", v: "1 QOR", c: "var(--mut)" }, { k: "swapped secret", v: "reverts", c: "var(--acc)" }] },
       { img: frameUrl(STILL.blackBall), pos: "62% 33%", cap: "black ball, sealed", alt: "A black ball dropping into the bronze funnel", r: "III", who: "The block", tag: "nobody had seen", t: "A block", ti: "nobody could know", p: "The lock block lands two blocks after your commit. Its hash did not exist when the house or you chose.", mb: "#16110d", mf: "#f7f2e9", rows: [{ k: "commit", v: "#4,182,905", c: "var(--mut)" }, { k: "lock", v: "#4,182,907", c: "var(--mut)" }, { k: "hash", v: "0xd03a…5e19", c: "var(--ink)" }] },
     ],
-    deskPos: cur.pos, deskImg: frameUrl(cur.img), deskCap: cur.cap, deskAlt: "Rendered still of the allotment machine at the " + cur.t + " stop",
+    deskPos: cur.pos, deskImg: frameUrl(cur.img), deskKey: String(step), deskCap: cur.cap, deskAlt: "Rendered still of the allotment machine at the " + cur.t + " stop",
     desk: cur.d.map((x) => ({ k: x[0], v: x[1], n: x[2], c: x[0] === "RESULT" || x[0] === "CHECKS" ? "#f0a37a" : "#f7f2e9" })),
     deskStatus: cur.s,
     tabs: DESK.map((d, i) => ({ t: d.t, n: "0" + (i + 1), sel: i === step ? "true" : "false", c: i === step ? "#f7f2e9" : "#a89a87", w: i < step ? 100 : i === step ? 60 : 0, pick: () => { setStep(i); setDeskPaused(true); } })),

@@ -5,4 +5,3 @@
 .pg-Mint .odds{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:20px}
 @container (max-width: 980px){.pg-Mint .mg{grid-template-columns:minmax(0,1fr)}.pg-Mint .how{grid-template-columns:1fr 1fr}.pg-Mint .odds{grid-template-columns:minmax(0,1fr)}}
 @container (max-width: 560px){.pg-Mint .how{grid-template-columns:minmax(0,1fr)}.pg-Mint .vis{aspect-ratio:1/1}}
-@container (min-width: 1800px){.pg-Mint .mg{grid-template-columns:minmax(0,1.3fr) minmax(420px,.7fr)}}

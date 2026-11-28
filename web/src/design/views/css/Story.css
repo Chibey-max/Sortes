@@ -1,25 +1,27 @@
 .pg-Story a{color:inherit}
 .pg-Story .lab{font-family:'Manrope',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
 .pg-Story .st{position:relative;width:100%;overflow:hidden;container-type:inline-size;background:var(--bg);color:var(--ink);font-family:'Manrope',sans-serif}
-.pg-Story .light{--bg:#ece6db;--bg2:#ece6db;--stage:transparent;--ink:#16110d;--mut:#5e554a;--lab:#6f6558;--card:#f7f2e9;--cardb:rgba(22,17,13,.09);--well:#efe8dc;--line:rgba(22,17,13,.08);--acc:#a3401d;--acc2:#e0703f;--wm:rgba(22,17,13,.05);--pill:#f7f2e9;--veil:236,230,219;--btnInk:#f7f2e9;--shadow:0 30px 70px rgba(70,50,30,.16)}
-.pg-Story .dark{--bg:#111112;--bg2:#111112;--stage:transparent;--ink:#f2f0eb;--mut:#b4b2ad;--lab:#93918c;--card:#19191b;--cardb:rgba(255,255,255,.1);--well:#212124;--line:rgba(255,255,255,.09);--acc:#e0703f;--acc2:#e0703f;--wm:rgba(255,255,255,.04);--pill:#19191b;--veil:17,17,18;--btnInk:#111112;--shadow:0 24px 60px rgba(0,0,0,.4)}
-.pg-Story .seq{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:60% 50%;display:block;pointer-events:none}
+.pg-Story .light{--bg:#ece6db;--bg2:#ece6db;--stage:transparent;--ink:#16110d;--mut:#5e554a;--lab:#6f6558;--card:#f7f2e9;--cardb:rgba(22,17,13,.09);--well:#efe8dc;--line:rgba(22,17,13,.08);--acc:#a3401d;--acc2:#e0703f;--wm:rgba(22,17,13,.05);--pill:#f7f2e9;--veil:236,230,219;--btnInk:#f7f2e9}
+.pg-Story .dark{--bg:#111112;--bg2:#111112;--stage:transparent;--ink:#f2f0eb;--mut:#b4b2ad;--lab:#93918c;--card:#19191b;--cardb:rgba(255,255,255,.1);--well:#212124;--line:rgba(255,255,255,.09);--acc:#e0703f;--acc2:#e0703f;--wm:rgba(255,255,255,.04);--pill:#19191b;--veil:17,17,18;--btnInk:#111112}
+.pg-Story .seq{position:absolute;inset:0;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:cover;object-position:78% 48%;display:block;pointer-events:none;transform:scale(.9) translateZ(0);transform-origin:78% 52%;backface-visibility:hidden;filter:none}
+.pg-Story .veil{position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,var(--bg) 0%,color-mix(in srgb,var(--bg) 55%,transparent) 30%,transparent 52%)}
 .pg-Story .pb{transition:transform .2s,filter .2s}.pg-Story .pb:hover{transform:translateY(-1px);filter:brightness(1.08)}
 .pg-Story .ob{transition:background .2s,color .2s}.pg-Story .ob:hover{background:var(--ink)!important;color:var(--bg)!important}
-.pg-Story .hero{position:absolute;left:5.5%;top:0;bottom:0;width:40%;display:flex;flex-direction:column;justify-content:center;gap:22px}
-.pg-Story .h1{margin:0;font-size:clamp(44px,6.2cqw,96px);line-height:.94;font-weight:300;letter-spacing:-.035em}
-.pg-Story .slot{position:absolute;left:5.5%;top:50%;width:380px;perspective:1200px;transform:translateY(-50%)}
+.pg-Story .hero{position:absolute;left:5.5%;top:0;bottom:0;width:42%;display:flex;flex-direction:column;justify-content:center;gap:22px;z-index:2}
+.pg-Story .heroP{font-size:clamp(16px,1.4cqw,20px)!important}
+.pg-Story .h1{margin:0;font-size:clamp(52px,8cqw,128px);line-height:.92;font-weight:300;letter-spacing:-.04em}
+.pg-Story .slot{position:absolute;left:5.5%;top:50%;width:380px;perspective:1200px;transform:translateY(-50%);z-index:3}
 .pg-Story .mveil{display:none}
-.pg-Story .cd{padding:22px 24px 20px;border-radius:22px;background:var(--card);border:1px solid var(--cardb);box-shadow:var(--shadow);transform-origin:50% 100%}
+.pg-Story .cd{padding:22px 24px 20px;border-radius:22px;background:var(--card);border:1px solid var(--cardb);transform-origin:50% 100%;overflow:hidden}
 .pg-Story .rn{width:34px;height:34px;border-radius:50%;border:1px solid var(--acc);color:var(--acc);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:600;font-size:13px}
 .pg-Story .ch{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:999px;border:1px solid var(--cardb);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.06em;color:var(--mut)}
 .pg-Story .ct{margin:14px 0 6px;font-size:29px;line-height:1.08;font-weight:300;letter-spacing:-.01em}
 .pg-Story .cb{margin:0 0 14px;font-size:13.5px;line-height:1.58;color:var(--mut)}
 .pg-Story .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
 .pg-Story .foot{margin:12px 0 0;font-size:12px;line-height:1.5;color:var(--lab);display:flex;align-items:center;gap:8px}
-.pg-Story .rail{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px;border-radius:999px;background:var(--pill);border:1px solid var(--cardb)}
+.pg-Story .rail{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px;border-radius:999px;background:color-mix(in srgb,var(--pill) 88%,transparent);border:1px solid var(--cardb);z-index:4}
 .pg-Story .rb{display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:999px;border:0;background:transparent;font-family:'Manrope',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;transition:background .25s,color .25s}
-.pg-Story .rb:hover{background:var(--line)}
+.pg-Story .rb:hover{background:var(--ink);color:var(--bg)}
 .pg-Story .rb:focus-visible,.pg-Story .pb:focus-visible,.pg-Story .ob:focus-visible,.pg-Story .sk:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
 .pg-Story .sk{position:absolute;right:5.5%;bottom:34px;border:0;background:transparent;color:var(--mut);font-family:'Manrope',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px}
 .pg-Story .sk:hover{color:var(--ink)}
@@ -29,12 +31,13 @@
 .pg-Story .tick{display:flex;gap:44px;white-space:nowrap;animation:tk 38s linear infinite}
 @keyframes tk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .pg-Story .wm{position:absolute;left:50%;top:46%;font-size:27cqw;font-weight:600;letter-spacing:-.02em;line-height:1;white-space:nowrap;color:var(--wm)}
-.pg-Story .lotcard{position:absolute;right:5.5%;top:17%;width:360px}
+.pg-Story .lotcard{position:absolute;right:5.5%;top:17%;width:360px;z-index:3}
 .pg-Story .dr1{position:absolute;left:5.5%;top:9%;margin:0;font-size:clamp(52px,7.4cqw,116px);line-height:.9;font-weight:300;letter-spacing:-.04em}
 .pg-Story .dr2{position:absolute;right:5.5%;bottom:19%;margin:0;font-size:clamp(52px,7.4cqw,116px);line-height:.9;font-weight:300;letter-spacing:-.04em}
 .pg-Story .cap{position:absolute;left:5.5%;bottom:120px;max-width:640px}
 @container (max-width: 720px){
- .pg-Story .seq{top:64px;height:52%;object-fit:cover;object-position:68% 50%}
+ .pg-Story .seq{top:64px;height:52%;object-fit:cover;object-position:70% 46%}
+ .pg-Story .veil{background:linear-gradient(180deg,transparent 12%,color-mix(in srgb,var(--bg) 22%,transparent) 38%,transparent 62%)}
  .pg-Story .hero{width:auto;right:6%;left:6%;top:auto;bottom:108px;justify-content:flex-end;gap:14px}
  .pg-Story .h1{font-size:clamp(40px,12.5cqw,64px)}
  .pg-Story .heroP{font-size:15px!important}
@@ -47,23 +50,25 @@
  .pg-Story .rail{bottom:44px}
  .pg-Story .sk{display:none}
  .pg-Story .cue{display:none}
- .pg-Story .lotcard{left:4%;right:4%;width:auto;top:auto;bottom:100px}
+ .pg-Story .lotcard{left:4%;right:4%;width:auto;top:auto;bottom:100px;z-index:3}
  .pg-Story .lotcard .cb{display:none}
- .pg-Story .dr1{left:6%;top:76px;font-size:15cqw}
- .pg-Story .dr2{right:6%;top:76px;bottom:auto;font-size:15cqw}
+ .pg-Story .dr1{left:6%;top:48px;font-size:15cqw;z-index:3}
+ .pg-Story .dr2{right:6%;top:auto;bottom:48%;font-size:15cqw;z-index:3}
  .pg-Story .cap{left:6%;right:6%;bottom:110px}
  .pg-Story .wm{top:34%}
  .pg-Story .tkr{display:none}
 }
-@container (min-width: 1800px){
- .pg-Story .slot,.pg-Story .lotcard{width:440px}
- .pg-Story .hero{width:34%}
-}
-@media (prefers-reduced-motion: reduce){.pg-Story .cue i,.pg-Story .tick{animation:none}.pg-Story .pb,.pg-Story .ob,.pg-Story .rb{transition:none}}
-/* Wide screens: line the story's left column up with the nav's 1680px content box. */
-@container (min-width: 1800px){
- .pg-Story .hero,.pg-Story .slot,.pg-Story .cue,.pg-Story .cap{left:calc((100% - 1680px) / 2 + 40px)}
- .pg-Story .sk{right:calc((100% - 1680px) / 2 + 40px)}
+@media (max-width: 380px) and (max-height: 720px){
+ .pg-Story .seq{height:44%}
+ .pg-Story .hero{bottom:84px;gap:10px}
+ .pg-Story .h1{font-size:clamp(32px,11cqw,44px)}
+ .pg-Story .slot,.pg-Story .lotcard{bottom:72px}
+ .pg-Story .lotcard .cd{padding:12px 12px 10px}
+ .pg-Story .lotcard .cd > div:nth-child(4){display:none}
+ .pg-Story .ct{font-size:18px;margin:6px 0 2px}
+ .pg-Story .rail{bottom:10px}
+ .pg-Story .dr1{top:42px;font-size:13cqw}
+ .pg-Story .dr2{right:6%;bottom:62%;font-size:12cqw}
 }
 /* Tablets: the step rail is centred, so the scroll cue would run into it. */
 @container (max-width: 1000px){.pg-Story .cue{display:none}}

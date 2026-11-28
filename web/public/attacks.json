@@ -1,0 +1,109 @@
+[
+  {
+    "name": "prevrandao",
+    "summary": "block.prevrandao read in two real transactions in different blocks",
+    "tx": "0xf64526a207f229eccca8a1b36ed5e7ad4d09492d85dde308ae54f50b05b0512d,0xdfa83d90749d41f84b2a0fe49daa72fa0ea05bfd5191b4cf398593bf532c013c",
+    "expected": "same value in both blocks",
+    "observed": "same (0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff); blockhash(n-1) = 0",
+    "passed": true,
+    "extra": {
+      "samples": [
+        {
+          "block": "10838529",
+          "prevrandao": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "blockhashPrev": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "block": "10838535",
+          "prevrandao": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "blockhashPrev": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    "at": "2026-11-27T08:20:19.197Z"
+  },
+  {
+    "name": "txhash",
+    "summary": "A die rolled from the transaction hash: the sender re-signs (changing the gas price by 1 wei) until the hash wins",
+    "tx": null,
+    "expected": "a winning roll (6) chosen before sending",
+    "observed": "won after 4 signatures; winning tx hash 0x4c0c768926d527e5db212b72b80d74d283e5f0744e3b9021f9f319e6eb52cdcd",
+    "passed": true,
+    "extra": {
+      "tries": 4,
+      "winningHash": "0x4c0c768926d527e5db212b72b80d74d283e5f0744e3b9021f9f319e6eb52cdcd"
+    },
+    "at": "2026-11-27T08:20:19.212Z"
+  },
+  {
+    "name": "silent-house",
+    "summary": "The house never reveals; anyone claims the timeout",
+    "tx": "0x82ce997f058bf0d043119153e81cf51b600502f9b5e6a79b7171cb0c1f251370",
+    "expected": "HouseTimedOut, floor result, fee + penalty refunded",
+    "observed": "HouseTimedOut",
+    "passed": true,
+    "extra": {
+      "requestId": "3",
+      "requestTx": "0x60d7af9cd7741184a9c54922f4cb8da7fa17a836906dc446a59624146ffe0c97"
+    },
+    "at": "2026-11-27T08:23:46.159Z"
+  },
+  {
+    "name": "silent-user",
+    "summary": "The user sees the house value and never reveals",
+    "tx": "0x93f9d592ce6010b34dd4512dfd3d2a975a950da1876580be295d5140797ec9dc",
+    "expected": "UserTimedOut, floor result",
+    "observed": "UserTimedOut",
+    "passed": true,
+    "extra": {
+      "requestId": "4"
+    },
+    "at": "2026-11-27T08:27:45.198Z"
+  },
+  {
+    "name": "forged-reveal",
+    "summary": "The house posts a value that is not its committed chain value",
+    "tx": "0xb86341c8c3f873525568771e0f781550fc89b117e0898983f52567a914a036f1",
+    "expected": "BadReveal",
+    "observed": "BadReveal",
+    "passed": true,
+    "extra": {
+      "requestId": "5"
+    },
+    "at": "2026-11-27T08:29:15.786Z"
+  },
+  {
+    "name": "swapped-secret",
+    "summary": "After seeing the house value, the user tries a different secret",
+    "tx": "0xcf26c00eec0c83b5ada7e760763a08d77b1d3211ec26b9ae15b6a84e74c8a8ad",
+    "expected": "BadSecret",
+    "observed": "BadSecret",
+    "passed": true,
+    "extra": {
+      "requestId": "6",
+      "honestRevealTx": "0x0d672e16bc24cf510ebf547ee2264ab212e56c908e7fb66892c5419fe2e04ab6"
+    },
+    "at": "2026-11-27T08:29:46.806Z"
+  },
+  {
+    "name": "ecdsa-thief",
+    "summary": "Holding only the house's ECDSA key inside its open EVM window, try withdraw and setPayout",
+    "tx": "0x24abaa64a004be9275d4738e6f85891ea9b3c07a5159e182d02e40f94ebb1a05,0x57e87cf6ecf424add1ba5ecc330c11811d313d212f2b125e9608cb8214aa853e",
+    "expected": "BadPqcSignature twice",
+    "observed": "BadPqcSignature, BadPqcSignature",
+    "passed": true,
+    "at": "2026-11-27T08:29:59.303Z"
+  },
+  {
+    "name": "replay",
+    "summary": "Re-send a withdraw signature that was already used once",
+    "tx": "0x940e79e2d0b0ab8b6f8b3e0152a0d641d1aafed39eb3002730b80d480857e341",
+    "expected": "BadPqcSignature",
+    "observed": "BadPqcSignature",
+    "passed": true,
+    "extra": {
+      "honestWithdrawTx": "0x1d07f32a6ab94c4dd752eaca46129819f1f0993ff274f57cf35ec820ec1cffea"
+    },
+    "at": "2026-11-27T08:30:18.843Z"
+  }
+]

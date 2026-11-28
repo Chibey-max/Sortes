@@ -3,5 +3,5 @@ node_modules/
 next-env.d.ts
 .env*.local
 src/abi/
-public/attacks.json
+.vercel
 *.tsbuildinfo

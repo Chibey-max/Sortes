@@ -96,7 +96,8 @@ function Inner() {
   const forged = attacks["forged-reveal"]?.tx;
   const go = (value: string) => () => { setQ(value); void run(value); };
   const examples = [
-    ...(newest ? [{ t: `#${newest.n} newest`, go: go(String(newest.n)) }] : []),
+    { t: "#1", go: go("1") },
+    ...(newest && newest.n !== 1 ? [{ t: `#${newest.n} newest`, go: go(String(newest.n)) }] : []),
     ...(floorLot ? [{ t: `#${floorLot.n} floor`, go: go(String(floorLot.n)) }] : []),
     ...(forged ? [{ t: "forged reveal", go: go(forged) }] : []),
   ];

@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import type { Address } from "viem";
 import { CONFIG } from "./config";
-import { connectQorex as qorexConnect, getQorexNative, type QorexAccount } from "./qorex";
+import { connectQorex as qorexConnect, flattenErr, getQorexNative, HOW_TO_SWITCH_DIANA, type QorexAccount } from "./qorex";
 import { short } from "./live";
 
 type Kind = "qorex" | "evm" | null;
@@ -13,6 +13,8 @@ export type WalletError = null | "no-qorex" | "no-metamask" | "rejected" | "netw
 interface WalletCtx {
   kind: Kind;
   address?: Address;
+  /** MetaMask 0x, kept even while QoreX is also connected. */
+  evmAddress?: Address;
   label: string;
   qorex?: QorexAccount;
   evmChainOk: boolean;
@@ -59,16 +61,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       if (!getQorexNative()) { setError("no-qorex"); return undefined; }
       const a = await qorexConnect();
-      wagmiDisconnect();
       setQorex(a);
       try { localStorage.setItem(KEY, "qorex"); } catch {}
       return a;
     } catch (e: any) {
-      const m = String(e?.message ?? e);
-      setError(/reject|denied|cancel/i.test(m) ? "rejected" : /network|chain|unsupported/i.test(m) ? "network" : "no-qorex");
+      const m = flattenErr(e);
+      setError(/reject|denied|cancel/i.test(m) ? "rejected" : /qorechain-vladi|does not match the active network|switch the network in QoreX/i.test(m) ? "network" : "no-qorex");
       return undefined;
     } finally { setBusy(false); }
-  }, [wagmiDisconnect]);
+  }, []);
 
   const connectEvm = useCallback(async () => {
     setBusy(true); setError(null);
@@ -81,7 +82,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         if (/already connected/i.test(String(e?.message))) return;
         throw e;
       });
-      setQorex(undefined);
       try { localStorage.setItem(KEY, "evm"); } catch {}
     } catch (e: any) {
       setError(/reject|denied|cancel/i.test(String(e?.message ?? e)) ? "rejected" : "no-metamask");
@@ -89,8 +89,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [connectors, connectAsync]);
 
   const switchToDiana = useCallback(async () => {
-    try { await switchChainAsync({ chainId: CONFIG.evmChainId }); setError(null); } catch { setError("network"); }
-  }, [switchChainAsync]);
+    // A page cannot move QoreX between vladi and diana (QoreX docs). MetaMask we can switch.
+    if (getQorexNative() && (localStorage.getItem(KEY) === "qorex" || qorex)) {
+      setError("network");
+      throw new Error(HOW_TO_SWITCH_DIANA);
+    }
+    try {
+      await switchChainAsync({ chainId: CONFIG.evmChainId });
+      setError(null);
+    } catch { setError("network"); }
+  }, [switchChainAsync, qorex]);
 
   const disconnect = useCallback(() => {
     setQorex(undefined); wagmiDisconnect();
@@ -98,13 +106,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [wagmiDisconnect]);
 
   const kind: Kind = qorex ? "qorex" : acct.isConnected ? "evm" : null;
-  const address = (qorex ? qorex.evm : acct.address) as Address | undefined;
+  const evmAddress = acct.address as Address | undefined;
+  const address = (qorex ? qorex.evm : evmAddress) as Address | undefined;
   const evmChainOk = !acct.isConnected || acct.chainId === CONFIG.evmChainId;
 
   const value = useMemo<WalletCtx>(() => ({
-    kind, address, label: short(address, 6, 4), qorex, evmChainOk, busy, error,
+    kind, address, evmAddress, label: short(address, 6, 4), qorex, evmChainOk, busy, error,
     clearError: () => setError(null), connectQorex, connectEvm, switchToDiana, disconnect,
-  }), [kind, address, qorex, evmChainOk, busy, error, connectQorex, connectEvm, switchToDiana, disconnect]);
+  }), [kind, address, evmAddress, qorex, evmChainOk, busy, error, connectQorex, connectEvm, switchToDiana, disconnect]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

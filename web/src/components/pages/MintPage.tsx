@@ -19,7 +19,7 @@ const SECTION_STEPS = ["connect", "ready", "signing", "committed", "revealing", 
 const IMG: [number, string, string, string][] = [
   [STILL.hero, "1.08", "70% 50%", "The machine, waiting"], [STILL.hero, "1.08", "70% 50%", "Ready when you are"],
   [STILL.whiteBall, "1.5", "74% 30%", "Your white ball, in the air"], [STILL.blackBall, "1.5", "62% 30%", "The block ball follows"],
-  [STILL.crank, "1.6", "72% 72%", "The crank turns"], [STILL.ticketOut, "1.12", "42% 50%", "Ticket 271 becomes your lot"],
+  [STILL.crank, "1.6", "72% 72%", "The crank turns"], [STILL.ticketOut, "1.12", "42% 50%", "Your plate comes out of the machine"],
 ];
 
 export function MintPage() {
@@ -33,12 +33,16 @@ export function MintPage() {
 
   // which still to show
   const cardStep = s === "idle" || (s === "error" && ctl.state.requestId === undefined) ? (wallet.kind ? 1 : 0) : s === "committing" ? 2 : s === "committed" || s === "lockPassed" ? 3 : s === "houseRevealed" || s === "userRevealSent" ? 4 : 5;
-  const [img, sc, origin, caption] = IMG[cardStep];
+  const [img, sc, origin, caption] = IMG[cardStep] ?? IMG[0];
 
   useEffect(() => {
-    if (!wallet.address || !isDeployed) { setMine([]); return; }
-    lotsOf(wallet.address).then((ids) => readLots(ids.slice(0, 3))).then((ls) => setMine(ls.filter((l) => l.finalized).map((l) => ({ n: Number(l.tokenId), traits: l.traits })))).catch(() => {});
-  }, [wallet.address, s]);
+    const addrs = [...new Set([wallet.address, wallet.evmAddress].filter(Boolean))] as string[];
+    if (!addrs.length || !isDeployed) { setMine([]); return; }
+    Promise.all(addrs.map((a) => lotsOf(a as `0x${string}`)))
+      .then((lists) => readLots([...new Set(lists.flat().map(String))].map((x) => BigInt(x)).slice(0, 6)))
+      .then((ls) => setMine(ls.filter((l) => l.finalized).map((l) => ({ n: Number(l.tokenId), traits: l.traits }))))
+      .catch(() => {});
+  }, [wallet.address, wallet.evmAddress, s]);
 
   // toasts at the moments the design calls out
   useEffect(() => {
@@ -55,7 +59,7 @@ export function MintPage() {
     priceChip: wallet.kind === "qorex" ? "free with QoreX" : `${qor(stats?.price, 0)} QOR with MetaMask`,
     img: frameUrl(img), sc, origin, caption, stepNo: "Step " + Math.max(1, Math.min(4, [1, 1, 1, 2, 3, 4][cardStep])) + " of 4",
     alt: "Rendered still of the Sortes allotment machine: " + caption.toLowerCase(),
-    how: [["01", "Commit", "Your browser makes a secret and sends only its hash, with the price."], ["02", "Lock block", "Two blocks later a block nobody could predict seals the draw."], ["03", "Reveal", "The house reveals its next hash link, then your secret is revealed."], ["04", "Drawn", "The contract hashes all three and paints your plate from the result."]].map((h) => ({ n: h[0], t: h[1], d: h[2] })),
+    how: [["01", "Commit", "Your browser makes a secret and sends only its hash, with the price."], ["02", "Lock block", "Two blocks later a block nobody could predict seals the draw."], ["03", "Reveal", "The house reveals its next hash link, then your secret is revealed."], ["04", "Drawn", "The contract hashes all three and paints your plate from the result."], ["05", "Keep it", "Open the lot page, re-run the math on Verify, or find the plate in the gallery. The same house can feed other apps (dice is already deployed)."]].map((h) => ({ n: h[0], t: h[1], d: h[2] })),
     odds: [["Common", 0], ["Uncommon", 1], ["Rare", 2], ["Legendary", 3]].map(([t, i]) => { const p = WEIGHTS_BPS[4][i as number] / 100; return { t, p: `${p}%`, w: p, c: TIER_VAR[i as number] }; }),
     mine: (mine.length ? mine : []).map((l) => { const ap = artProps(l.traits); return { n: l.n, f: ap.field, g: ap.glyph, e: ap.engraving, s: ap.seal, a: ap.aura, l: `LOT #${l.n}` }; }),
     hasMine: mine.length > 0,

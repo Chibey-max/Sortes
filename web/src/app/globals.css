@@ -10,7 +10,7 @@
 
 .light{--bg:#ece6db;--surface:#f7f2e9;--surface2:#efe8dc;--sunk:#e4dccd;--line:rgba(22,17,13,.1);--line2:rgba(22,17,13,.2);--ink:#16110d;--mut:#5e554a;--lab:#6b6155;--acc:#a3401d;--btn:#16110d;--btnInk:#f7f2e9;--band:#16110d;--bandInk:#f2efe9;--bandMut:#b0a89c;--ok:#3f6e30;--okBg:#e1e9d6;--warn:#8a5410;--warnBg:#f1e2c6;--bad:#a3261c;--badBg:#f3d9d3;--info:#235e78;--infoBg:#d9e6ea;--inkr:22,17,13;--t1:#6a5f52;--t2:#4f7a3d;--t3:#2b6a86;--t4:#a3401d;color-scheme:light}
 .dark{--bg:#111112;--surface:#19191b;--surface2:#212124;--sunk:#0b0b0c;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.17);--ink:#f2f0eb;--mut:#b4b2ad;--lab:#93918c;--acc:#e0703f;--btn:#f2f0eb;--btnInk:#111112;--band:#19191b;--bandInk:#f2f0eb;--bandMut:#b4b2ad;--ok:#8cc27a;--okBg:#1b2419;--warn:#e2ad5c;--warnBg:#2a2216;--bad:#f07a6e;--badBg:#2b1917;--info:#79b8d6;--infoBg:#162228;--inkr:242,240,235;--t1:#a8a6a1;--t2:#8cc27a;--t3:#79b8d6;--t4:#e0703f;color-scheme:dark}
-.pg{position:relative;container-type:inline-size;background:var(--bg);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100%}
+.pg{position:relative;container-type:inline-size;background:var(--bg);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;width:100%;max-width:1440px;margin-inline:auto;overflow-x:clip;box-sizing:border-box}
 .pg a{color:inherit}
 .wrap{max-width:1440px;margin:0 auto;padding:0 clamp(18px,5cqw,88px);box-sizing:border-box}
 .fr{font-family:'Fraunces',serif;font-optical-sizing:auto}
@@ -50,7 +50,9 @@
 @media (prefers-reduced-motion: reduce){.pg *{animation:none!important;transition:none!important}}
 
 /* ---- app shell ---- */
-html{background:#ece6db}
+html{background:#ece6db;scroll-behavior:auto;overflow-x:clip}
+html,body{width:100%;max-width:100%;min-height:100%;overflow-x:clip}
+html.lenis,html.lenis body{height:auto}
 html[data-theme="dark"]{background:#111112;color-scheme:dark}
 body{margin:0;font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit}

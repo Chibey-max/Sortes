@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Address, Hex } from "viem";
-import { parseEventLogs } from "viem";
+import { encodeFunctionData, parseEventLogs } from "viem";
 import { useWriteContract } from "wagmi";
 import { ABI, CONFIG } from "./config";
 import { findRequestByCommit, publicClient, readLot, readMintStats, readRequest, relayReveal, tokenOfRequest, type HouseRequest, type Lot } from "./chain";
 import { Status, commitmentOf } from "./protocol";
-import { qorexCall, type QorexAccount } from "./qorex";
+import { flattenErr, getQorexEvm, HOW_TO_SWITCH_DIANA, qorexCall, qorexCanSendFrom, qorexEvmAccounts, qorexEvmSend, type QorexAccount } from "./qorex";
 import { downloadBackup, newSecret, saveSecret, secretForRequest, updateSecret, type SavedSecret } from "./secrets";
 import { useWallet } from "./wallet";
 
@@ -43,16 +43,42 @@ export interface MintState {
 }
 
 export function classify(e: any, extra?: { have?: string; need?: string }): MintError {
-  const m = String(e?.shortMessage ?? e?.message ?? e);
+  const m = flattenErr(e);
   if (/User rejected|rejected the request|denied|cancel/i.test(m)) return { kind: "rejected", title: "You rejected the signature.", desc: "Nothing was sent and no QOR moved. You can try again." };
-  if (/no open EVM authori[sz]ation window|code 26|window/i.test(m) && /evm|window/i.test(m)) return { kind: "window", title: "Your EVM window is closed.", desc: "Open an EVM access window in QoreX, then try again. Nothing was sent." };
+  if (/no open EVM authori[sz]ation window|code 26|window/i.test(m) && /evm|window/i.test(m)) {
+    return {
+      kind: "window",
+      title: "Your EVM window is closed.",
+      desc: "MetaMask cannot open that window. In QoreX, select the Ethereum account whose 0x matches MetaMask Account 1 (the one with 100 QOR). Then use QoreX · free — QoreX opens a one-shot window when it sends. After that, paid MetaMask draws work too.",
+    };
+  }
   if (/PoolEmpty/.test(m)) return { kind: "pool", title: "The free-mint pool is empty.", desc: "Use the paid mint with MetaMask, or come back later." };
   if (/SponsorLimit/.test(m)) return { kind: "limit", title: "This wallet used its free mints.", desc: "Each wallet gets a few sponsored mints. Use the paid mint to draw more." };
   if (/SoldOut/.test(m)) return { kind: "soldout", title: "All 1,000 lots are drawn.", desc: "The collection is sold out." };
-  if (/insufficient funds|exceeds the balance|balance/i.test(m)) return { kind: "balance", title: "Not enough QOR.", desc: extra?.need ? `You need ${extra.need}. Your balance is ${extra.have ?? "lower"}.` : "A paid draw costs 1 QOR plus a small network fee." };
-  if (/qorechain-vladi|not been authorized/i.test(m)) return { kind: "network", title: "QoreX is on mainnet.", desc: "Open the extension, tap the version number at the bottom seven times, choose Switch to testnet (diana), reload this page, then mint again and approve the popup." };
-  if (/chain|network|unsupported/i.test(m)) return { kind: "network", title: "Wrong network.", desc: "Switch to QoreChain diana, then try again. Nothing has been sent." };
-  return { kind: "other", title: "Something went wrong.", desc: m.length > 220 ? m.slice(0, 220) + "…" : m };
+  if (/insufficient funds|exceeds the balance|balance/i.test(m) && !/qorechain/i.test(m)) return { kind: "balance", title: "Not enough QOR.", desc: extra?.need ? `You need ${extra.need}. Your balance is ${extra.have ?? "lower"}.` : "A paid draw costs 1 QOR plus a small network fee." };
+  if (/not found on chain|fund it first/i.test(m)) {
+    return { kind: "other", title: "QoreX is using an unfunded account.", desc: "The selected QoreX key has 0 QOR. Switch QoreX to the Ethereum account that matches MetaMask Account 1 (0xd910…, 100 QOR), then Draw again on QoreX · free." };
+  }
+  if (/cannot show what|will not display a Cross-VM/i.test(m)) {
+    return { kind: "other", title: "QoreX cannot display this call.", desc: "This native QoreX account cannot mint from a website. In QoreX, select the Ethereum (coin 60) account that has your test QOR, then Draw again." };
+  }
+  if (/coin 118|cannot send on QoreChain's EVM/i.test(m)) {
+    return { kind: "other", title: "This QoreX account uses a native key.", desc: "In QoreX, select an Ethereum account imported from MetaMask (coin 60), the same 0x that has your QOR, then Draw again." };
+  }
+  if (/pqc-key-missing/i.test(m)) {
+    return { kind: "other", title: "This account has no post-quantum key yet.", desc: "In QoreX, with the funded Ethereum account selected, open the MetaMask on QoreChain card once so QoreX can register the key, then Draw again." };
+  }
+  if (/\b4100\b|unknown account|not been authorized|Unauthorized|different account/i.test(m) && !/vladi/i.test(m)) {
+    return { kind: "other", title: "QoreX is on a different account.", desc: "QoreX is not signing as the funded MetaMask address. In QoreX, add/select the Ethereum (coin 60) account for the same phrase as MetaMask Account 1, then press QoreX · free → Draw." };
+  }
+  if (/qorechain-vladi|does not match the active network|switch the network in QoreX/i.test(m) && !/qorechain-diana/i.test(m)) {
+    return { kind: "network", title: "QoreX is not on diana.", desc: HOW_TO_SWITCH_DIANA };
+  }
+  if (/\bwrong network\b|unrecognized chain|4902|wallet_addEthereumChain/i.test(m) && !/qorechain-diana/i.test(m)) {
+    return { kind: "network", title: "Wrong network.", desc: HOW_TO_SWITCH_DIANA };
+  }
+  const desc = m.length > 220 ? m.slice(0, 220) + "…" : m || "The wallet did not say why.";
+  return { kind: "other", title: "Something went wrong.", desc };
 }
 
 export function useMint() {
@@ -132,13 +158,31 @@ export function useMint() {
   const start = useCallback(async () => {
     try {
       if (path === "evm") {
-        if (!wallet.address || wallet.kind !== "evm") throw new Error("connect MetaMask first");
+        const from = wallet.evmAddress ?? (wallet.kind === "evm" ? wallet.address : undefined);
+        if (!from) throw new Error("connect MetaMask first");
         if (!wallet.evmChainOk) throw new Error("wrong network");
-        const saved = begin(wallet.address, "evm");
+        const saved = begin(from, "evm");
         const { price } = await readMintStats();
-        const bal = await publicClient.getBalance({ address: wallet.address });
+        const bal = await publicClient.getBalance({ address: from });
         if (bal < price) throw Object.assign(new Error("insufficient funds"), { have: bal, need: price });
-        const hash = await writeContractAsync({ address: CONFIG.mint, abi: ABI.mint, functionName: "mint", args: [saved.commit], value: price });
+        const data = encodeFunctionData({ abi: ABI.mint, functionName: "mint", args: [saved.commit] });
+        let hash: Hex;
+        // Prefer MetaMask for this tab. QoreX only if it actually lists this 0x (opens the one-shot window).
+        const qorexOwns = getQorexEvm() ? await qorexCanSendFrom(from) : false;
+        if (qorexOwns) {
+          hash = (await qorexEvmSend(from, CONFIG.mint, data, price)).txHash as Hex;
+        } else {
+          try {
+            hash = await writeContractAsync({ address: CONFIG.mint, abi: ABI.mint, functionName: "mint", args: [saved.commit], value: price });
+          } catch (e) {
+            const m = flattenErr(e);
+            if (getQorexEvm() && /no open EVM authori[sz]ation window|code 26/i.test(m)) {
+              hash = (await qorexEvmSend(from, CONFIG.mint, data, price)).txHash as Hex;
+            } else {
+              throw e;
+            }
+          }
+        }
         patch({ step: "committed", commitTx: hash });
         const rc = await publicClient.waitForTransactionReceipt({ hash });
         if (rc.status !== "success") throw new Error("the mint reverted (is your EVM window open in QoreX?)");
@@ -148,17 +192,43 @@ export function useMint() {
         const acct = (wallet.qorex ?? (await wallet.connectQorex())) as QorexAccount | undefined;
         if (!acct) return;
         if (!acct.canSend) throw new Error("This QoreX build cannot sign dApp transactions yet. Update QoreX.");
-        const saved = begin(acct.evm, "qorex");
-        const res = await qorexCall(acct, CONFIG.mint, ABI.mint, "mintSponsored", [saved.commit], "Sortes mint");
-        patch({ step: "committed", commitTx: res.txHash });
-        // The native tx does not carry the EVM request id: find it by our commitment.
-        let id: bigint | undefined;
-        for (let i = 0; i < 24 && id === undefined; i++) {
-          id = await findRequestByCommit(acct.evm, saved.commit, 2_000n);
-          if (id === undefined) await new Promise((r) => setTimeout(r, 1500));
+        const evmAccts = getQorexEvm() ? await qorexEvmAccounts() : [];
+        const extra = wallet.evmAddress ? [wallet.evmAddress] : [];
+        const candidates = [...new Set([acct.evm, ...evmAccts, ...extra].map((a) => a.toLowerCase() as Address))];
+        let from = acct.evm;
+        let best = -1n;
+        for (const a of candidates) {
+          try {
+            const b = await publicClient.getBalance({ address: a });
+            if (b > best) { best = b; from = a; }
+          } catch { /* skip */ }
         }
-        if (id === undefined) throw new Error("Mint sent but the request was not found yet. Reopen this page shortly; your secret is saved.");
-        track(saved, id, await tokenOfRequest(id), "qorex");
+        if (best <= 0n) {
+          throw new Error("QoreX is using an unfunded account (not found on chain — fund it first).");
+        }
+        const saved = begin(from, "qorex");
+        const data = encodeFunctionData({ abi: ABI.mint, functionName: "mintSponsored", args: [saved.commit] });
+        const qorexOwns = getQorexEvm() ? await qorexCanSendFrom(from) : false;
+        const res = qorexOwns
+          ? await qorexEvmSend(from, CONFIG.mint, data, 0n)
+          : wallet.evmAddress && from.toLowerCase() === wallet.evmAddress.toLowerCase()
+            ? { txHash: await writeContractAsync({ address: CONFIG.mint, abi: ABI.mint, functionName: "mintSponsored", args: [saved.commit] }), code: 0, evm: true }
+            : await qorexCall(acct, CONFIG.mint, ABI.mint, "mintSponsored", [saved.commit], "Sortes mint");
+        patch({ step: "committed", commitTx: res.txHash });
+        if (res.evm && res.txHash.startsWith("0x")) {
+          const rc = await publicClient.waitForTransactionReceipt({ hash: res.txHash as Hex });
+          if (rc.status !== "success") throw new Error("the mint reverted");
+          const ev = parseEventLogs({ abi: ABI.mint, logs: rc.logs, eventName: "Minted" })[0] as any;
+          track(saved, BigInt(ev.args.requestId), BigInt(ev.args.tokenId), "qorex");
+        } else {
+          let id: bigint | undefined;
+          for (let i = 0; i < 24 && id === undefined; i++) {
+            id = await findRequestByCommit(from, saved.commit, 2_000n);
+            if (id === undefined) await new Promise((r) => setTimeout(r, 1500));
+          }
+          if (id === undefined) throw new Error("Mint sent but the request was not found yet. Reopen this page shortly; your secret is saved.");
+          track(saved, id, await tokenOfRequest(id), "qorex");
+        }
       }
     } catch (e: any) {
       const price = "1 QOR";

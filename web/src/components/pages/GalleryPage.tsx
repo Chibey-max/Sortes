@@ -19,7 +19,7 @@ function Inner() {
   const wallet = useWallet();
   const q = useSearchParams();
   const stats = useMintStats().data;
-  const { lots } = useAllLots();
+  const { lots, error: lotsErr } = useAllLots();
   const [tier, setTier] = useState(-1);
   const [mineOnly, setMineOnly] = useState(q.get("mine") === "1");
   const [dense, setDense] = useState(false);
@@ -53,7 +53,10 @@ function Inner() {
     };
   };
   const grid = filtered.slice(0, shown).map(mk);
-  const marquee = all.slice(0, 8).map(mk);
+  const stripSrc = all.length ? all : [];
+  const strip = [...stripSrc];
+  while (strip.length && strip.length < 6) strip.push(...stripSrc);
+  const marquee = strip.map(mk);
   const featSrc = done.find((l) => tierOf(l.traits) === 3 && !l.floor) ?? done.find((l) => !l.floor) ?? null;
   const feat = featSrc
     ? { n: featSrc.n, ...(({ field: f, glyph: g, engraving: e, seal: s, aura: a }) => ({ f, g, e, s, a }))(artProps(featSrc.traits)), gr: greek(featSrc.n), owner: `owner ${ownerShort(featSrc.owner)}`, label: tierOf(featSrc.traits) === 3 ? "Latest Legendary" : "Latest lot" }
@@ -65,13 +68,13 @@ function Inner() {
   const empty = filtered.length === 0 && lots !== null;
   const v = {
     th: theme, isDark: theme === "dark", setTheme, wallet: wallet.label,
-    drawn: lots === null ? "…" : num(total), ofMax: `of ${num(max)} drawn`, holdersLine: `${num(holders)} ${holders === 1 ? "holder" : "holders"}`,
+    drawn: lots === null ? (stats ? num(Number(stats.total)) : "…") : num(total), ofMax: `of ${num(max)} drawn`, holdersLine: `${num(holders)} ${holders === 1 ? "holder" : "holders"}`,
     rar: counts.map((c, i) => ({ w: pct(c), c: TIER_VAR[i] })), rarLabel: `Drawn so far: ${counts.map((c, i) => `${c} ${TIERS[i]}`).join(", ")}, ${Math.max(0, max - total)} still to draw`,
     legend: counts.map((c, i) => `${TIERS[i]} ${c}`),
     feat, ftr: featRows, hasLive: marquee.length > 0, live: marquee.concat(marquee),
     tiers: tiers.map(([t, k, c, n]) => ({ t, n: String(n), c, on: tier === k ? "true" : "false", go: () => { setTier(k as number); setShown(PAGE); } })),
     grid, empty, clear: () => { setTier(-1); setMineOnly(false); setSearch(""); },
-    emptyNote: lots && lots.length === 0 ? "No lots have been drawn yet. Be the first." : mineOnly ? "None of the lots in this room belong to this address. Clear the filter, or draw one." : `${counts[3]} Legendary lots have been drawn, and none match this filter. Clear it, or draw one.`,
+    emptyNote: lotsErr ? "Could not read lots from the node. Reload this page." : lots && lots.length === 0 ? "No lots have been drawn yet. Be the first." : mineOnly ? "None of the lots in this room belong to this address. Clear the filter, or draw one." : `${counts[3]} Legendary lots have been drawn, and none match this filter. Clear it, or draw one.`,
     dense: dense ? "dense" : "", densePressed: dense ? "true" : "false", toggleDense: () => setDense(!dense),
     sortLabel: asc ? "Oldest first" : "Newest first", sortPressed: asc ? "true" : "false", toggleSort: () => setAsc(!asc),
     search, onSearch: (e: any) => { setSearch(e.target.value); setShown(PAGE); },
