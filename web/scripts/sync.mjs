@@ -5,8 +5,13 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const abiSrc = resolve(root, "../contracts/abi");
-mkdirSync(resolve(root, "src/abi"), { recursive: true });
-for (const f of readdirSync(abiSrc)) cpSync(resolve(abiSrc, f), resolve(root, "src/abi", f));
+const abiDst = resolve(root, "src/abi");
+mkdirSync(abiDst, { recursive: true });
+if (existsSync(abiSrc)) {
+  for (const f of readdirSync(abiSrc)) cpSync(resolve(abiSrc, f), resolve(abiDst, f));
+} else if (!existsSync(resolve(abiDst, "SortesMint.json"))) {
+  throw new Error("contracts/abi missing and web/src/abi is empty");
+}
 const attacks = process.env.SORTES_ATTACKS_JSON ?? resolve(root, "../house/data/attacks.json");
 if (existsSync(attacks)) cpSync(attacks, resolve(root, "public/attacks.json"));
 console.log("synced ABIs" + (existsSync(attacks) ? " and attacks.json" : ""));
