@@ -12,5 +12,6 @@
 .pg-Footer .ft .cols{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:clamp(20px,3cqw,40px)}
 .pg-Footer .ft a{color:var(--bandMut);text-decoration:none;font-size:14px;line-height:2.1}
 .pg-Footer .ft a:hover{color:var(--bandInk)}
+.pg-Footer .ft a.mono{text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.2)}
 @container (max-width: 760px){.pg-Footer .ft .cols{grid-template-columns:1fr 1fr}.pg-Footer .ft .brand{grid-column:1 / -1}}
 @container (max-width: 420px){.pg-Footer .ft .cols{grid-template-columns:minmax(0,1fr)}}

@@ -21,10 +21,11 @@ export function chainFor(cfg: Config) {
 
 export function clients(cfg: Config, privateKey?: Hex): { pub: PublicClient; wallet?: WalletClient; account?: Account } {
   const chain = chainFor(cfg);
-  const pub = createPublicClient({ chain, transport: http(cfg.evmRpc) }) as PublicClient;
+  const transport = http(cfg.evmRpc, { timeout: 20_000, retryCount: 5, retryDelay: 600 });
+  const pub = createPublicClient({ chain, transport }) as PublicClient;
   if (!privateKey) return { pub };
   const account = privateKeyToAccount(privateKey);
-  const wallet = createWalletClient({ chain, transport: http(cfg.evmRpc), account });
+  const wallet = createWalletClient({ chain, transport, account });
   return { pub, wallet, account };
 }
 

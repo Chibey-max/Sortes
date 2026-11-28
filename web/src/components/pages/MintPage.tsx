@@ -9,7 +9,6 @@ import { allSecrets } from "@/lib/secrets";
 import { lotsOf, readLots } from "@/lib/chain";
 import { useTheme } from "@/lib/theme";
 import { useWallet } from "@/lib/wallet";
-import { useToast } from "@/lib/toast";
 import { WEIGHTS_BPS, TIERS, TIER_VAR, artProps } from "@/lib/traits";
 import { num } from "@/lib/live";
 import { isDeployed } from "@/lib/config";
@@ -25,7 +24,6 @@ const IMG: [number, string, string, string][] = [
 export function MintPage() {
   const { theme, setTheme } = useTheme();
   const wallet = useWallet();
-  const toast = useToast();
   const ctl = useMint();
   const stats = useMintStats().data;
   const [mine, setMine] = useState<{ n: number; traits: number[] }[]>([]);
@@ -44,12 +42,7 @@ export function MintPage() {
       .catch(() => {});
   }, [wallet.address, wallet.evmAddress, s]);
 
-  // toasts at the moments the design calls out
-  useEffect(() => {
-    if (s === "committed" && ctl.state.commitTx) toast.push({ c: "var(--ok)", t: "Commit sent", d: "Your commitment is on its way to the chain. Your secret stays in this browser." });
-    if (s === "revealed") toast.push({ c: "var(--ok)", t: "Lot drawn", d: `Lot #${ctl.state.tokenId} is yours. Its proof is on the lot page.` });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s]);
+  // Progress lives on the mint card. A toast here became a full-height sheet over the page.
 
   const total = stats ? Number(stats.total) : undefined, max = stats ? Number(stats.max) : 1000;
   const v = {

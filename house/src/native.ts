@@ -18,9 +18,23 @@ export async function houseAccount(mnemonic: string): Promise<Unified> {
 }
 
 async function getJson(url: string): Promise<any> {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`GET ${url} -> HTTP ${r.status}`);
-  return r.json();
+  let last = "fetch failed";
+  for (let i = 0; i < 4; i++) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+      if (r.status === 429 || r.status >= 500) {
+        last = `HTTP ${r.status} from ${url}`;
+        await new Promise((ok) => setTimeout(ok, 800 * 2 ** i));
+        continue;
+      }
+      if (!r.ok) throw new Error(`GET ${url} -> HTTP ${r.status}`);
+      return r.json();
+    } catch (e: any) {
+      last = String(e?.message ?? e);
+      await new Promise((ok) => setTimeout(ok, 800 * 2 ** i));
+    }
+  }
+  throw new Error(last);
 }
 
 export async function accountSequence(cfg: Config, address: string): Promise<{ accountNumber: bigint; sequence: bigint }> {

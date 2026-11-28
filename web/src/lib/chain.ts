@@ -3,7 +3,11 @@ import { qorechainTestnet } from "@qorechain/qorex-rainbowkit";
 import { ABI, CONFIG } from "./config";
 import { Status } from "./protocol";
 
-export const publicClient = createPublicClient({ chain: qorechainTestnet as any, transport: http(CONFIG.evmRpc) });
+const rpcUrl = typeof window === "undefined" ? CONFIG.evmRpc : "/api/rpc";
+export const publicClient = createPublicClient({
+  chain: qorechainTestnet as any,
+  transport: http(rpcUrl, { timeout: 25_000, retryCount: 5, retryDelay: 400 }),
+});
 
 /** diana's eth_getLogs rejects wide ranges (~2k+). Walk in 1,500-block slices. */
 const LOG_SPAN = 1_500n;

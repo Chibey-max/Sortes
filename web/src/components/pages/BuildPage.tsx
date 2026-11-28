@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BuildView } from "@/design/views/BuildView";
 import { COINFLIP, highlight } from "@/lib/code";
-import { ABI, CONFIG, isDeployed } from "@/lib/config";
+import { ABI, CONFIG, addressUrl, isDeployed } from "@/lib/config";
 import { publicClient } from "@/lib/chain";
 import { blocksToSeconds, fmtDuration, qor, useHouseParams } from "@/lib/data";
 import { short } from "@/lib/live";
@@ -42,7 +42,10 @@ export function BuildPage() {
   }, []);
 
   const w = (n?: bigint | number) => (n === undefined ? "…" : `${n} blocks (about ${fmtDuration(blocksToSeconds(n))})`);
-  const row = (n: string, a: string | undefined, d: string) => ({ n, a: a && a !== "0x0000000000000000000000000000000000000000" ? short(a, 8, 6) : "not deployed yet", d });
+  const row = (n: string, a: string | undefined, d: string) => {
+    const live = a && a !== "0x0000000000000000000000000000000000000000";
+    return { n, a: live ? short(a, 8, 6) : "not deployed yet", href: live ? addressUrl(a) : "", title: live ? a : undefined, d };
+  };
   const v = {
     th: theme, isDark: theme === "dark", setTheme, wallet: wallet.label,
     toc: TOC.map(([id, t]) => ({ id, t, on: active === id ? "true" : "false" })),

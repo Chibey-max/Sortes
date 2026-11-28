@@ -67,7 +67,7 @@ function Inner() {
     if (!text) { setMode("idle"); return; }
     if (!isDeployed) { setErr("Contracts are not configured for this site yet."); setMode("idle"); return; }
     setMode("running");
-    try {
+    const once = async () => {
       if (/^0x[0-9a-fA-F]{64}$/.test(text)) {
         const rc = await publicClient.getTransactionReceipt({ hash: text as Hex }).catch(() => null);
         if (!rc) throw new Error("No transaction with that hash on diana.");
@@ -88,7 +88,24 @@ function Inner() {
       }
       const n = BigInt(text.replace(/^#|^lot\s*#?|^n[º°]\s*/i, "").replace(/\D/g, ""));
       const r = await verify({ tokenId: n }); setRes(r); setMode(r.checks.every((c) => c.pass !== false) ? "pass" : "fail");
-    } catch (e: any) { setErr(e?.shortMessage ?? e?.message ?? "Could not check that."); setMode("idle"); }
+    };
+    try {
+      let last: unknown;
+      for (let i = 0; i < 3; i++) {
+        try { await once(); return; } catch (e) {
+          last = e;
+          const m = String((e as any)?.shortMessage ?? (e as any)?.message ?? e);
+          if (!/HTTP request failed|fetch failed|RPC unavailable|429|timeout/i.test(m) || i === 2) throw e;
+          await new Promise((ok) => setTimeout(ok, 500 * 2 ** i));
+        }
+      }
+      throw last;
+    } catch (e: any) {
+      const raw = String(e?.shortMessage ?? e?.message ?? e);
+      const flaky = /HTTP request failed|fetch failed|RPC unavailable|-32000|429|timeout|timed out/i.test(raw);
+      setErr(flaky ? "The diana RPC did not answer. Wait a few seconds and try again — this is the testnet, not a bad lot." : raw);
+      setMode("idle");
+    }
   }
   useEffect(() => { if (first.current && q) void run(q); first.current = false; /* eslint-disable-next-line */ }, []);
 

@@ -9,6 +9,8 @@
 .pg-Build .tbl.t2 .tr{grid-template-columns:1.2fr 1fr}
 .pg-Build .tbl .tr:last-child{border-bottom:0}
 .pg-Build .tbl .th{font:700 11px 'Manrope',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--lab);border-bottom:1px solid var(--line2)}
+.pg-Build .caddr{color:var(--ink);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line2)}
+.pg-Build .caddr:hover{color:var(--acc);text-decoration-color:var(--acc)}
 .pg-Build .doc h2{margin:0 0 14px}.pg-Build .doc section{padding-top:56px}.pg-Build .doc p{max-width:680px}
 .pg-Build .steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 @container (max-width: 980px){.pg-Build .bd{grid-template-columns:minmax(0,1fr)}.pg-Build .side{position:static;flex-direction:row;overflow-x:auto;padding-bottom:6px}.pg-Build .side a{white-space:nowrap}.pg-Build .steps{grid-template-columns:minmax(0,1fr)}}

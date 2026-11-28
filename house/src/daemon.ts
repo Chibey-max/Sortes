@@ -36,6 +36,8 @@ export class HouseDaemon {
   private state: State;
   private statePath: string;
   private busy = false;
+  /** After a 429 / RPC drop, skip ticks until this time so we do not hammer diana. */
+  private coolUntil = 0;
   /** Serialises every transaction the daemon sends, so nonces never collide. */
   private txLock: Promise<unknown> = Promise.resolve();
   private stopped = false;
@@ -109,7 +111,7 @@ export class HouseDaemon {
 
   /** One pass over every request the house may still owe something to. */
   async tick(): Promise<void> {
-    if (this.busy) return;
+    if (this.busy || Date.now() < this.coolUntil) return;
     this.busy = true;
     try {
       if (!this.params) {
@@ -178,7 +180,11 @@ export class HouseDaemon {
     } catch (e: any) {
       this.health.ok = false;
       this.health.lastError = String(e?.shortMessage ?? e?.message ?? e);
-      log("tick error:", this.health.lastError);
+      if (/HTTP request failed|429|fetch failed/i.test(this.health.lastError)) {
+        this.coolUntil = Date.now() + 20_000;
+      } else {
+        log("tick error:", this.health.lastError);
+      }
     } finally {
       this.busy = false;
     }
@@ -241,8 +247,9 @@ export class HouseDaemon {
         log(`opened scoped EVM window (house contract only) in ${tx}`);
       }
     } catch (e: any) {
-      this.health.lastError = `window: ${e?.message ?? e}`;
-      log("window error:", this.health.lastError);
+      const msg = String(e?.message ?? e);
+      this.health.lastError = `window: ${msg}`;
+      if (!/429|fetch failed|HTTP request failed/i.test(msg)) log("window error:", this.health.lastError);
     }
   }
 

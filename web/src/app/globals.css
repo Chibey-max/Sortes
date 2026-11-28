@@ -56,10 +56,13 @@ html.lenis,html.lenis body{height:auto}
 html[data-theme="dark"]{background:#111112;color-scheme:dark}
 body{margin:0;font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit}
-/* Toasts (design: In-app errors and toasts) */
-.toasts-host{position:fixed;right:16px;bottom:16px;z-index:100;display:flex;flex-direction:column;gap:10px;width:min(360px,calc(100vw - 32px))}
-.toast{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--surface);border:1px solid var(--line2);box-shadow:0 16px 40px rgba(0,0,0,.18);color:var(--ink);font-family:'Manrope',sans-serif}
-.toast .small{font-size:13px;line-height:1.55;color:var(--mut)}
+/* Compact notices — never a page-height sheet. */
+.toasts-host{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:400;display:flex;flex-direction:column;align-items:center;gap:8px;width:min(340px,calc(100vw - 28px));pointer-events:none}
+.toast{pointer-events:auto;display:flex;gap:10px;align-items:flex-start;width:100%;padding:12px 12px 12px 14px;border-radius:14px;background:var(--surface);color:var(--ink);border:1px solid var(--line2);box-shadow:0 12px 32px rgba(22,17,13,.16);font-family:'Manrope',sans-serif;animation:toast-in .22s cubic-bezier(.2,.8,.2,1)}
+.toast .small{font-size:12.5px;line-height:1.45;color:var(--mut)}
+.toast button{border:0;background:none;color:var(--lab);cursor:pointer;width:24px;height:24px;flex:none;border-radius:8px;display:inline-flex;align-items:center;justify-content:center}
+.toast button:hover{background:var(--surface2);color:var(--ink)}
+@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 /* Wallet menu */
 .wm{position:relative;display:inline-flex}

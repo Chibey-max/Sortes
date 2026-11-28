@@ -1,6 +1,6 @@
 import { parseAbiItem, zeroHash, type Hex } from "viem";
-import { CONFIG } from "./config";
-import { getLogsChunked, publicClient, readHouseParams, readLot, readRequest, tokenOfRequest } from "./chain";
+import { ABI, CONFIG } from "./config";
+import { getLogsChunked, publicClient, readLot, readRequest, tokenOfRequest } from "./chain";
 import { Status, commitmentOf, hashForward, resultFrom } from "./protocol";
 import { FLOOR, deriveTraits, variantName } from "./traits";
 import { secretForRequest } from "./secrets";
@@ -32,7 +32,7 @@ async function anchorAt(requestBlock: bigint): Promise<Hex> {
   const all = [...enrolled, ...rotated].sort((a, b) => Number(a.blockNumber! - b.blockNumber!));
   const last = all.at(-1);
   if (last) return last.args.anchor as Hex;
-  return (await readHouseParams()).anchor as Hex;
+  return (await publicClient.readContract({ address: CONFIG.house, abi: ABI.house, functionName: "anchor", args: [] })) as Hex;
 }
 
 /** Recompute everything about a request in the browser. Input: request id, or token id. */
@@ -48,7 +48,12 @@ export async function verify(input: { requestId?: bigint; tokenId?: bigint }): P
 
   const r = await readRequest(requestId);
   if (r.status === Status.None) throw new Error(`request #${requestId} does not exist`);
-  const params = await readHouseParams();
+  const [W_HOUSE, W_USER, liveAnchor] = await Promise.all([
+    publicClient.readContract({ address: CONFIG.house, abi: ABI.house, functionName: "W_HOUSE", args: [] }) as Promise<bigint>,
+    publicClient.readContract({ address: CONFIG.house, abi: ABI.house, functionName: "W_USER", args: [] }) as Promise<bigint>,
+    publicClient.readContract({ address: CONFIG.house, abi: ABI.house, functionName: "anchor", args: [] }) as Promise<Hex>,
+  ]);
+  const params = { W_HOUSE, W_USER, anchor: liveAnchor };
   const checks: Check[] = [];
 
   // 1. House value hashes forward to the anchor.
@@ -67,14 +72,16 @@ export async function verify(input: { requestId?: bigint; tokenId?: bigint }): P
   // 2. Secret matches the commitment (secret read from the Fulfilled event).
   let secret: Hex | undefined;
   if (r.status === Status.Fulfilled) {
-    const logs = await getLogsChunked({
-      address: CONFIG.house,
-      event: FULFILLED,
-      fromBlock: r.houseRevealBlock,
-      toBlock: r.houseRevealBlock + BigInt(params.W_USER) + 1n,
-      extra: { args: { id: requestId } },
-    });
-    secret = logs[0]?.args.secret as Hex | undefined;
+    try {
+      const logs = await publicClient.getLogs({
+        address: CONFIG.house,
+        event: FULFILLED,
+        fromBlock: r.houseRevealBlock,
+        toBlock: r.houseRevealBlock + BigInt(params.W_USER) + 1n,
+        args: { id: requestId },
+      });
+      secret = logs[0]?.args.secret as Hex | undefined;
+    } catch { /* RPC drop: fall through to the secret saved in this browser */ }
     if (!secret) secret = secretForRequest(requestId.toString())?.secret;
     if (secret) {
       const c = commitmentOf(secret, r.beneficiary, r.consumer, BigInt(CONFIG.evmChainId));
