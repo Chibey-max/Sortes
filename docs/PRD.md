@@ -338,7 +338,7 @@ Target: 40+ Foundry tests, all green, with the exact count in the README. The pr
 - [x] 30+ mints settled, 10+ from other wallets
 - [x] At least one house timeout and one user timeout, triggered on purpose
 - [x] All 8 attacks run with hashes recorded
-- [ ] Verifier passes on 5 random lots
+- [x] Verifier passes on 5 random lots
 - [ ] Daemon ran 24 hours unattended
 - [x] QCAI Stage 1 and Stage 2 PDFs in `docs/audit/`
 
